@@ -1,0 +1,225 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: tagemons.tagemon.io
+spec:
+  group: tagemon.io
+  names:
+    kind: Tagemon
+    listKind: TagemonList
+    plural: tagemons
+    singular: tagemon
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: AWS service type
+      jsonPath: .spec.type
+      name: Type
+      type: string
+    - description: Monitored regions
+      jsonPath: .spec.regions
+      name: Regions
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Tagemon is the Schema for the tagemons API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: TagemonSpec defines the desired state of Tagemon.
+            properties:
+              addCloudwatchTimestamp:
+                description: AddCloudwatchTimestamp is the default setting to add
+                  CloudWatch timestamp, can be overridden in the metric configuration
+                type: boolean
+              delay:
+                description: Delay is the default delay in seconds before retrieving
+                  metrics, can be overridden in the metric configuration
+                format: int32
+                minimum: 1
+                type: integer
+              length:
+                description: Length is the default length in seconds for metric data
+                  retrieval, can be overridden in the metric configuration
+                format: int32
+                minimum: 1
+                type: integer
+              metrics:
+                description: Metrics is the list of metrics to monitor
+                items:
+                  description: TagemonMetric defines a CloudWatch metric configuration
+                  properties:
+                    addCloudwatchTimestamp:
+                      description: AddCloudwatchTimestamp For Metric
+                      type: boolean
+                    delay:
+                      description: Delay For Metric
+                      format: int32
+                      minimum: 1
+                      type: integer
+                    length:
+                      description: Length For Metric
+                      format: int32
+                      minimum: 1
+                      type: integer
+                    name:
+                      description: Name is the CloudWatch metric name
+                      type: string
+                    nilToZero:
+                      description: NilToZero For Metric
+                      type: boolean
+                    period:
+                      description: Period For Metric
+                      format: int32
+                      minimum: 2
+                      type: integer
+                    statistics:
+                      description: Statistics For Metric
+                      items:
+                        description: Statistics represents a valid AWS metrics statistics
+                        enum:
+                        - Sum
+                        - Average
+                        - Maximum
+                        - Minimum
+                        - SampleCount
+                        type: string
+                      type: array
+                  required:
+                  - name
+                  type: object
+                type: array
+              nilToZero:
+                default: true
+                description: NilToZero is the default setting to convert nil values
+                  to zero, can be overridden in the metric configuration
+                type: boolean
+              period:
+                description: Period is the default period in seconds for CloudWatch
+                  metrics, can be overridden in the metric configuration
+                format: int32
+                minimum: 1
+                type: integer
+              regions:
+                description: Regions is the list of AWS regions to monitor
+                items:
+                  description: AWSRegion represents a valid AWS region
+                  enum:
+                  - us-east-1
+                  - us-east-2
+                  - us-west-1
+                  - us-west-2
+                  - af-south-1
+                  - ap-east-1
+                  - ap-south-1
+                  - ap-south-2
+                  - ap-northeast-1
+                  - ap-northeast-2
+                  - ap-northeast-3
+                  - ap-southeast-1
+                  - ap-southeast-2
+                  - ap-southeast-3
+                  - ap-southeast-4
+                  - ca-central-1
+                  - eu-central-1
+                  - eu-central-2
+                  - eu-north-1
+                  - eu-south-1
+                  - eu-south-2
+                  - eu-west-1
+                  - eu-west-2
+                  - eu-west-3
+                  - me-central-1
+                  - me-south-1
+                  - sa-east-1
+                  type: string
+                minItems: 1
+                type: array
+              searchTags:
+                description: SearchTags are optional tags to filter resources
+                items:
+                  description: TagemonTag defines a tag key-value pair for resource
+                    filtering
+                  properties:
+                    key:
+                      description: Key is the tag key
+                      type: string
+                    value:
+                      description: Value is the tag value
+                      type: string
+                  required:
+                  - key
+                  - value
+                  type: object
+                type: array
+              statistics:
+                description: Statistics are the default statistics for all metrics,
+                  can be overridden in the metric configuration
+                items:
+                  description: Statistics represents a valid AWS metrics statistics
+                  enum:
+                  - Sum
+                  - Average
+                  - Maximum
+                  - Minimum
+                  - SampleCount
+                  type: string
+                type: array
+              thresholdTags:
+                description: ThresholdTags is the list of threshold tag names
+                items:
+                  type: string
+                type: array
+              type:
+                description: Type is the AWS service type (e.g., AWS/RDS, AWS/Backup,
+                  AWS/S3)
+                pattern: ^AWS\/[A-Z]+$
+                type: string
+            required:
+            - delay
+            - length
+            - metrics
+            - period
+            - regions
+            - statistics
+            - type
+            type: object
+          status:
+            description: TagemonStatus defines the observed state of Tagemon.
+            properties:
+              deploymentID:
+                type: string
+              observedGeneration:
+                description: ObservedGeneration reflects the generation of the most
+                  recently observed Tagemon.
+                format: int64
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

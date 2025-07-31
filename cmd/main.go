@@ -37,7 +37,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	tagemoncontrollerv1alpha1 "github.com/next-insurance/tagemon-dev/api/v1alpha1"
+	tagemonv1alpha1 "github.com/next-insurance/tagemon-dev/api/v1alpha1"
 	"github.com/next-insurance/tagemon-dev/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
@@ -50,7 +50,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(tagemoncontrollerv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(tagemonv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -202,7 +202,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := (&controller.TagemonReconciler{
+	if err := (&controller.Reconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
