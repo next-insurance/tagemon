@@ -24,6 +24,18 @@ import (
 // +kubebuilder:validation:Enum=us-east-1;us-east-2;us-west-1;us-west-2;af-south-1;ap-east-1;ap-south-1;ap-south-2;ap-northeast-1;ap-northeast-2;ap-northeast-3;ap-southeast-1;ap-southeast-2;ap-southeast-3;ap-southeast-4;ca-central-1;eu-central-1;eu-central-2;eu-north-1;eu-south-1;eu-south-2;eu-west-1;eu-west-2;eu-west-3;me-central-1;me-south-1;sa-east-1
 type AWSRegion string
 
+// AWSRole represents an AWS IAM role to assume
+type AWSRole struct {
+	// RoleArn is the ARN of the AWS IAM role to assume
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Pattern=`^arn:aws:iam::\d{12}:role\/[A-Za-z0-9+=,.@_\-/]+$`
+	RoleArn string `json:"roleArn"`
+
+	// ExternalId is the external ID to use when assuming the role (optional)
+	// +kubebuilder:validation:Optional
+	ExternalId string `json:"externalId,omitempty"`
+}
+
 // Statistics represents a valid AWS metrics statistics
 // +kubebuilder:validation:Enum=Sum;Average;Maximum;Minimum;SampleCount
 type Statistics string
@@ -32,13 +44,23 @@ type Statistics string
 type TagemonSpec struct {
 	// Type is the AWS service type (e.g., AWS/RDS, AWS/Backup, AWS/S3)
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Pattern=`^AWS\/[A-Z]+$`
+	// +kubebuilder:validation:Pattern=`^AWS\/[A-Z0-9]+$`
 	Type string `json:"type"`
 
 	// Regions is the list of AWS regions to monitor
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinItems=1
 	Regions []AWSRegion `json:"regions"`
+
+	// AWS roles to assume
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinItems=1
+	Roles []AWSRole `json:"awsRoles"`
+
+	// ServiceAccountRoleArn is the ARN of the AWS IAM role to be used by the ServiceAccount
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Pattern=`^arn:aws:iam::\d{12}:role\/[A-Za-z0-9+=,.@_\-/]+$`
+	ServiceAccountRoleArn string `json:"serviceAccountRoleArn"`
 
 	// Statistics are the default statistics for all metrics, can be overridden in the metric configuration
 	// +kubebuilder:validation:Required
@@ -53,11 +75,6 @@ type TagemonSpec struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Minimum=1
 	Length *int32 `json:"length,omitempty"`
-
-	// Delay is the default delay in seconds before retrieving metrics, can be overridden in the metric configuration
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Minimum=1
-	Delay *int32 `json:"delay,omitempty"`
 
 	// NilToZero is the default setting to convert nil values to zero, can be overridden in the metric configuration
 	// +kubebuilder:default=true
@@ -78,6 +95,10 @@ type TagemonSpec struct {
 	// ThresholdTags is the list of threshold tag names
 	// +kubebuilder:validation:Optional
 	ThresholdTags []string `json:"thresholdTags,omitempty"`
+
+	// ExportedTagsOnMetrics is a list of tag names to export on metrics
+	// +kubebuilder:validation:Optional
+	ExportedTagsOnMetrics []string `json:"exportedTagsOnMetrics,omitempty"`
 }
 
 // TagemonMetric defines a CloudWatch metric configuration
@@ -99,11 +120,6 @@ type TagemonMetric struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Minimum=1
 	Length *int32 `json:"length,omitempty"`
-
-	// Delay For Metric
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Minimum=1
-	Delay *int32 `json:"delay,omitempty"`
 
 	// NilToZero For Metric
 	// +kubebuilder:validation:Optional
@@ -131,6 +147,24 @@ type TagemonStatus struct {
 	// +optional
 	ObservedGeneration int64  `json:"observedGeneration,omitempty"`
 	DeploymentID       string `json:"deploymentID,omitempty"`
+
+	// ConfigMapName is the name of the ConfigMap created for this Tagemon
+	// +optional
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
+	ConfigMapName string `json:"configMapName,omitempty"`
+
+	// DeploymentName is the name of the Deployment created for this Tagemon
+	// +optional
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
+	DeploymentName string `json:"deploymentName,omitempty"`
+
+	// ServiceAccountName is the name of the ServiceAccount created for this Tagemon
+	// +optional
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 }
 
 // +kubebuilder:object:root=true

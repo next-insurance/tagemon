@@ -55,12 +55,30 @@ spec:
                 description: AddCloudwatchTimestamp is the default setting to add
                   CloudWatch timestamp, can be overridden in the metric configuration
                 type: boolean
-              delay:
-                description: Delay is the default delay in seconds before retrieving
-                  metrics, can be overridden in the metric configuration
-                format: int32
-                minimum: 1
-                type: integer
+              awsRoles:
+                description: AWS roles to assume
+                items:
+                  description: AWSRole represents an AWS IAM role to assume
+                  properties:
+                    externalId:
+                      description: ExternalId is the external ID to use when assuming
+                        the role (optional)
+                      type: string
+                    roleArn:
+                      description: RoleArn is the ARN of the AWS IAM role to assume
+                      pattern: ^arn:aws:iam::\d{12}:role\/[A-Za-z0-9+=,.@_\-/]+$
+                      type: string
+                  required:
+                  - roleArn
+                  type: object
+                minItems: 1
+                type: array
+              exportedTagsOnMetrics:
+                description: ExportedTagsOnMetrics is a list of tag names to export
+                  on metrics
+                items:
+                  type: string
+                type: array
               length:
                 description: Length is the default length in seconds for metric data
                   retrieval, can be overridden in the metric configuration
@@ -75,11 +93,6 @@ spec:
                     addCloudwatchTimestamp:
                       description: AddCloudwatchTimestamp For Metric
                       type: boolean
-                    delay:
-                      description: Delay For Metric
-                      format: int32
-                      minimum: 1
-                      type: integer
                     length:
                       description: Length For Metric
                       format: int32
@@ -175,6 +188,11 @@ spec:
                   - value
                   type: object
                 type: array
+              serviceAccountRoleArn:
+                description: ServiceAccountRoleArn is the ARN of the AWS IAM role
+                  to be used by the ServiceAccount
+                pattern: ^arn:aws:iam::\d{12}:role\/[A-Za-z0-9+=,.@_\-/]+$
+                type: string
               statistics:
                 description: Statistics are the default statistics for all metrics,
                   can be overridden in the metric configuration
@@ -196,27 +214,46 @@ spec:
               type:
                 description: Type is the AWS service type (e.g., AWS/RDS, AWS/Backup,
                   AWS/S3)
-                pattern: ^AWS\/[A-Z]+$
+                pattern: ^AWS\/[A-Z0-9]+$
                 type: string
             required:
-            - delay
+            - awsRoles
             - length
             - metrics
             - period
             - regions
+            - serviceAccountRoleArn
             - statistics
             - type
             type: object
           status:
             description: TagemonStatus defines the observed state of Tagemon.
             properties:
+              configMapName:
+                description: ConfigMapName is the name of the ConfigMap created for
+                  this Tagemon
+                maxLength: 253
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                type: string
               deploymentID:
+                type: string
+              deploymentName:
+                description: DeploymentName is the name of the Deployment created
+                  for this Tagemon
+                maxLength: 253
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                 type: string
               observedGeneration:
                 description: ObservedGeneration reflects the generation of the most
                   recently observed Tagemon.
                 format: int64
                 type: integer
+              serviceAccountName:
+                description: ServiceAccountName is the name of the ServiceAccount
+                  created for this Tagemon
+                maxLength: 253
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                type: string
             type: object
         type: object
     served: true
