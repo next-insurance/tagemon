@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -458,6 +459,37 @@ func (r *Reconciler) executeModify(ctx context.Context, tagemon *v1alpha1.Tagemo
 				return err
 			}
 			logger.Info("ServiceAccount updated successfully", "name", serviceAccount.Name, "roleArn", tagemon.Spec.ServiceAccountRoleArn)
+		}
+	}
+
+	// Restart deployment pods by updating deployment with a restart annotation
+	if tagemon.Status.DeploymentName != "" {
+		deployment := &appsv1.Deployment{}
+		deploymentKey := client.ObjectKey{
+			Namespace: tagemon.Namespace,
+			Name:      tagemon.Status.DeploymentName,
+		}
+
+		if err := r.Get(ctx, deploymentKey, deployment); err != nil {
+			if errors.IsNotFound(err) {
+				logger.Info("Deployment not found, may have been deleted", "name", tagemon.Status.DeploymentName)
+			} else {
+				logger.Error(err, "Failed to get Deployment", "name", tagemon.Status.DeploymentName)
+				return err
+			}
+		} else {
+			// Add/update restart annotation to trigger pod restart
+			if deployment.Spec.Template.Annotations == nil {
+				deployment.Spec.Template.Annotations = make(map[string]string)
+			}
+			// Use current timestamp to ensure the annotation value changes each time
+			deployment.Spec.Template.Annotations["tagemon.io/restartedAt"] = time.Now().Format(time.RFC3339)
+
+			if err := r.Update(ctx, deployment); err != nil {
+				logger.Error(err, "Failed to update Deployment for pod restart", "name", deployment.Name)
+				return err
+			}
+			logger.Info("Deployment updated to restart pods", "name", deployment.Name)
 		}
 	}
 
