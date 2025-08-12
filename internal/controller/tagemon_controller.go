@@ -43,9 +43,14 @@ const (
 	finalizerName = "tagemon.io/finalizer"
 )
 
+type ControllerConfig struct {
+	ServiceAccountName string `yaml:"serviceAccountName"`
+}
+
 type Reconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	Config *ControllerConfig
 }
 
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -96,11 +101,6 @@ func (r *Reconciler) handleCreate(ctx context.Context, tagemon *v1alpha1.Tagemon
 		return ctrl.Result{}, fmt.Errorf("failed to generate YACE config: %w", err)
 	}
 
-	if err := r.createServiceAccount(ctx, tagemon); err != nil {
-		logger.Info("TAGEMON CREATE FAILED", "name", tagemon.Name, "error", err.Error())
-		return ctrl.Result{}, err
-	}
-
 	if err := r.createConfigMap(ctx, tagemon, yaceConfig); err != nil {
 		logger.Info("TAGEMON CREATE FAILED", "name", tagemon.Name, "error", err.Error())
 		return ctrl.Result{}, err
@@ -131,22 +131,13 @@ func (r *Reconciler) handleCreate(ctx context.Context, tagemon *v1alpha1.Tagemon
 func (r *Reconciler) handleModify(ctx context.Context, tagemon *v1alpha1.Tagemon) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	configMapChanged := false
-	serviceAccountChanged := false
-
 	configMapChanged, err := r.updateConfigMap(ctx, tagemon)
 	if err != nil {
 		logger.Info("TAGEMON MODIFY FAILED", "name", tagemon.Name, "error", err.Error())
 		return ctrl.Result{}, err
 	}
 
-	serviceAccountChanged, err = r.updateServiceAccount(ctx, tagemon)
-	if err != nil {
-		logger.Info("TAGEMON MODIFY FAILED", "name", tagemon.Name, "error", err.Error())
-		return ctrl.Result{}, err
-	}
-
-	err = r.annotateDeploymentIfRestartRequired(ctx, tagemon, configMapChanged, serviceAccountChanged)
+	err = r.annotateDeploymentIfRestartRequired(ctx, tagemon, configMapChanged)
 	if err != nil {
 		logger.Info("TAGEMON MODIFY FAILED", "name", tagemon.Name, "error", err.Error())
 		return ctrl.Result{}, err
@@ -179,11 +170,6 @@ func (r *Reconciler) handleDelete(ctx context.Context, tagemon *v1alpha1.Tagemon
 		return ctrl.Result{}, err
 	}
 
-	if err := r.deleteServiceAccount(ctx, tagemon); err != nil {
-		logger.Info("TAGEMON DELETE FAILED", "name", tagemon.Name, "error", err.Error())
-		return ctrl.Result{}, err
-	}
-
 	controllerutil.RemoveFinalizer(tagemon, finalizerName)
 	if err := r.Update(ctx, tagemon); err != nil {
 		if errors.IsConflict(err) {
@@ -200,30 +186,6 @@ func (r *Reconciler) handleDelete(ctx context.Context, tagemon *v1alpha1.Tagemon
 // =============================================================================
 // RESOURCE CREATION FUNCTIONS
 // =============================================================================
-
-func (r *Reconciler) createServiceAccount(ctx context.Context, tagemon *v1alpha1.Tagemon) error {
-	logger := log.FromContext(ctx)
-
-	serviceAccountName := fmt.Sprintf("%s-yace", tagemon.Name)
-	serviceAccount := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      serviceAccountName,
-			Namespace: tagemon.Namespace,
-			Annotations: map[string]string{
-				"eks.amazonaws.com/role-arn": tagemon.Spec.ServiceAccountRoleArn,
-				"tagemon.io/deployment-id":   tagemon.Status.DeploymentID,
-			},
-		},
-	}
-
-	if err := r.Create(ctx, serviceAccount); err != nil {
-		return fmt.Errorf("failed to create ServiceAccount: %w", err)
-	}
-	logger.Info("ServiceAccount created successfully", "name", serviceAccount.Name, "roleArn", tagemon.Spec.ServiceAccountRoleArn, "deploymentID", tagemon.Status.DeploymentID)
-
-	tagemon.Status.ServiceAccountName = serviceAccountName
-	return nil
-}
 
 func (r *Reconciler) createConfigMap(ctx context.Context, tagemon *v1alpha1.Tagemon, yaceConfig string) error {
 	logger := log.FromContext(ctx)
@@ -255,7 +217,6 @@ func (r *Reconciler) createDeployment(ctx context.Context, tagemon *v1alpha1.Tag
 	logger := log.FromContext(ctx)
 
 	deploymentName := fmt.Sprintf("%s-yace", tagemon.Name)
-	serviceAccountName := tagemon.Status.ServiceAccountName
 	configMapName := tagemon.Status.ConfigMapName
 
 	deployment := &appsv1.Deployment{
@@ -280,7 +241,6 @@ func (r *Reconciler) createDeployment(ctx context.Context, tagemon *v1alpha1.Tag
 					},
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: serviceAccountName,
 					Containers: []corev1.Container{
 						{
 							Name:      "yace",
@@ -325,6 +285,11 @@ func (r *Reconciler) createDeployment(ctx context.Context, tagemon *v1alpha1.Tag
 				},
 			},
 		},
+	}
+
+	// Only set ServiceAccountName if it's configured
+	if r.Config.ServiceAccountName != "" {
+		deployment.Spec.Template.Spec.ServiceAccountName = r.Config.ServiceAccountName
 	}
 
 	if err := r.Create(ctx, deployment); err != nil {
@@ -378,52 +343,6 @@ func (r *Reconciler) updateConfigMap(ctx context.Context, tagemon *v1alpha1.Tage
 			return false, err
 		}
 		logger.Info("ConfigMap updated successfully", "name", configMap.Name)
-		return true, nil
-	}
-
-	return false, nil
-}
-
-func (r *Reconciler) updateServiceAccount(ctx context.Context, tagemon *v1alpha1.Tagemon) (bool, error) {
-	logger := log.FromContext(ctx)
-
-	if tagemon.Status.ServiceAccountName == "" {
-		return false, nil
-	}
-
-	serviceAccount := &corev1.ServiceAccount{}
-	serviceAccountKey := client.ObjectKey{
-		Namespace: tagemon.Namespace,
-		Name:      tagemon.Status.ServiceAccountName,
-	}
-
-	if err := r.Get(ctx, serviceAccountKey, serviceAccount); err != nil {
-		if errors.IsNotFound(err) {
-			logger.Info("ServiceAccount not found, may have been deleted", "name", tagemon.Status.ServiceAccountName)
-			return false, nil
-		} else {
-			logger.Error(err, "Failed to get ServiceAccount", "name", tagemon.Status.ServiceAccountName)
-			return false, err
-		}
-	}
-
-	// Check if the role ARN actually changed
-	currentRoleArn := ""
-	if serviceAccount.Annotations != nil {
-		currentRoleArn = serviceAccount.Annotations["eks.amazonaws.com/role-arn"]
-	}
-
-	if currentRoleArn != tagemon.Spec.ServiceAccountRoleArn {
-		if serviceAccount.Annotations == nil {
-			serviceAccount.Annotations = make(map[string]string)
-		}
-		serviceAccount.Annotations["eks.amazonaws.com/role-arn"] = tagemon.Spec.ServiceAccountRoleArn
-
-		if err := r.Update(ctx, serviceAccount); err != nil {
-			logger.Error(err, "Failed to update ServiceAccount", "name", serviceAccount.Name)
-			return false, err
-		}
-		logger.Info("ServiceAccount updated successfully", "name", serviceAccount.Name, "roleArn", tagemon.Spec.ServiceAccountRoleArn)
 		return true, nil
 	}
 
@@ -571,37 +490,6 @@ func (r *Reconciler) deleteDeployment(ctx context.Context, tagemon *v1alpha1.Tag
 		return err
 	}
 	logger.Info("Deployment deleted successfully", "name", deployment.Name)
-	return nil
-}
-
-func (r *Reconciler) deleteServiceAccount(ctx context.Context, tagemon *v1alpha1.Tagemon) error {
-	logger := log.FromContext(ctx)
-
-	if tagemon.Status.ServiceAccountName == "" {
-		return nil
-	}
-
-	serviceAccount := &corev1.ServiceAccount{}
-	serviceAccountKey := client.ObjectKey{
-		Namespace: tagemon.Namespace,
-		Name:      tagemon.Status.ServiceAccountName,
-	}
-
-	if err := r.Get(ctx, serviceAccountKey, serviceAccount); err != nil {
-		if errors.IsNotFound(err) {
-			logger.Info("ServiceAccount not found, may have been already deleted", "name", tagemon.Status.ServiceAccountName)
-			return nil
-		} else {
-			logger.Error(err, "Failed to get ServiceAccount", "name", tagemon.Status.ServiceAccountName)
-			return err
-		}
-	}
-
-	if err := r.Delete(ctx, serviceAccount); err != nil {
-		logger.Error(err, "Failed to delete ServiceAccount", "name", serviceAccount.Name)
-		return err
-	}
-	logger.Info("ServiceAccount deleted successfully", "name", serviceAccount.Name)
 	return nil
 }
 

@@ -26,6 +26,7 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -42,6 +43,8 @@ import (
 	// +kubebuilder:scaffold:imports
 )
 
+const DefaultConfigName = "controller-config"
+
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
@@ -52,6 +55,40 @@ func init() {
 
 	utilruntime.Must(tagemonv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
+}
+
+func loadConfig() *controller.ControllerConfig {
+	v := viper.New()
+
+	// Configure Viper - NO DEFAULTS
+	v.SetConfigName(DefaultConfigName)
+	v.SetConfigType("yaml")
+	v.AddConfigPath("./config")
+	v.AddConfigPath(".")
+
+	// Enable environment variable support
+	v.SetEnvPrefix("TAGEMON")
+	v.AutomaticEnv()
+
+	// Try to read config file
+	if err := v.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			setupLog.Info("Config file not found, using environment variables only")
+		} else {
+			setupLog.Error(err, "Error reading config file")
+		}
+	} else {
+		setupLog.Info("Loaded config from file", "path", v.ConfigFileUsed())
+	}
+
+	// Unmarshal into struct
+	var config controller.ControllerConfig
+	if err := v.Unmarshal(&config); err != nil {
+		setupLog.Error(err, "Failed to unmarshal config")
+		return &controller.ControllerConfig{}
+	}
+
+	return &config
 }
 
 // nolint:gocyclo
@@ -88,6 +125,9 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	// Load config AFTER logger is initialized
+	config := loadConfig()
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
@@ -205,6 +245,7 @@ func main() {
 	if err := (&controller.Reconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+		Config: config,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Tagemon")
 		os.Exit(1)
