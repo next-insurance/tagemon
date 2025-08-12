@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -39,6 +40,20 @@ type AWSRole struct {
 // Statistics represents a valid AWS metrics statistics
 // +kubebuilder:validation:Enum=Sum;Average;Maximum;Minimum;SampleCount
 type Statistics string
+
+// PodResources captures resource requests and limits for the YACE pod's container.
+// +kubebuilder:validation:Optional
+type PodResources struct {
+	// Requests describes the minimum amount of compute resources required.
+	// Keys are valid resource names (e.g. cpu, memory). Values follow Kubernetes quantity format.
+	// +kubebuilder:validation:Optional
+	Requests corev1.ResourceList `json:"requests,omitempty"`
+
+	// Limits describes the maximum amount of compute resources allowed.
+	// Keys are valid resource names (e.g. cpu, memory). Values follow Kubernetes quantity format.
+	// +kubebuilder:validation:Optional
+	Limits corev1.ResourceList `json:"limits,omitempty"`
+}
 
 // TagemonSpec defines the desired state of Tagemon.
 type TagemonSpec struct {
@@ -99,6 +114,10 @@ type TagemonSpec struct {
 	// ExportedTagsOnMetrics is a list of tag names to export on metrics
 	// +kubebuilder:validation:Optional
 	ExportedTagsOnMetrics []string `json:"exportedTagsOnMetrics,omitempty"`
+
+	// PodResources defines resource requirements for the YACE pods
+	// +kubebuilder:validation:Optional
+	PodResources *PodResources `json:"podResources,omitempty"`
 }
 
 // TagemonMetric defines a CloudWatch metric configuration
