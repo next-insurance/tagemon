@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -508,6 +509,31 @@ func (r *Reconciler) updateStatus(ctx context.Context, tagemon *v1alpha1.Tagemon
 	}
 	return ctrl.Result{}, nil
 }
+
+func setMetricOrGlobalValue(m map[string]interface{}, key string, metric *v1alpha1.TagemonMetric, spec *v1alpha1.TagemonSpec) {
+
+	fieldName := strings.ToUpper(key[:1]) + key[1:]
+
+	metricValue := reflect.ValueOf(metric).Elem().FieldByName(fieldName)
+	if metricValue.IsValid() && !metricValue.IsZero() {
+		if metricValue.Kind() == reflect.Ptr {
+			m[key] = metricValue.Elem().Interface()
+		} else {
+			m[key] = metricValue.Interface()
+		}
+		return
+	}
+
+	specValue := reflect.ValueOf(spec).Elem().FieldByName(fieldName)
+	if specValue.IsValid() && !specValue.IsZero() {
+		if specValue.Kind() == reflect.Ptr {
+			m[key] = specValue.Elem().Interface()
+		} else {
+			m[key] = specValue.Interface()
+		}
+	}
+}
+
 func (r *Reconciler) generateYACEConfig(tagemon *v1alpha1.Tagemon) (string, error) {
 	config := map[string]interface{}{
 		"apiVersion": "v1alpha1",
@@ -550,35 +576,11 @@ func (r *Reconciler) generateYACEConfig(tagemon *v1alpha1.Tagemon) (string, erro
 								"name": metric.Name,
 							}
 
-							if len(metric.Statistics) > 0 {
-								m["statistics"] = metric.Statistics
-							} else if len(tagemon.Spec.Statistics) > 0 {
-								m["statistics"] = tagemon.Spec.Statistics
-							}
-
-							if metric.Period != nil {
-								m["period"] = *metric.Period
-							} else if tagemon.Spec.Period != nil {
-								m["period"] = *tagemon.Spec.Period
-							}
-
-							if metric.Length != nil {
-								m["length"] = *metric.Length
-							} else if tagemon.Spec.Length != nil {
-								m["length"] = *tagemon.Spec.Length
-							}
-
-							if metric.NilToZero != nil {
-								m["nilToZero"] = *metric.NilToZero
-							} else if tagemon.Spec.NilToZero != nil {
-								m["nilToZero"] = *tagemon.Spec.NilToZero
-							}
-
-							if metric.AddCloudwatchTimestamp != nil {
-								m["addCloudwatchTimestamp"] = *metric.AddCloudwatchTimestamp
-							} else if tagemon.Spec.AddCloudwatchTimestamp != nil {
-								m["addCloudwatchTimestamp"] = *tagemon.Spec.AddCloudwatchTimestamp
-							}
+							setMetricOrGlobalValue(m, "statistics", &metric, &tagemon.Spec)
+							setMetricOrGlobalValue(m, "period", &metric, &tagemon.Spec)
+							setMetricOrGlobalValue(m, "length", &metric, &tagemon.Spec)
+							setMetricOrGlobalValue(m, "nilToZero", &metric, &tagemon.Spec)
+							setMetricOrGlobalValue(m, "addCloudwatchTimestamp", &metric, &tagemon.Spec)
 
 							metrics[i] = m
 						}
