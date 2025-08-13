@@ -18,6 +18,8 @@ package controller
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"reflect"
 	"strings"
@@ -191,7 +193,7 @@ func (r *Reconciler) handleDelete(ctx context.Context, tagemon *v1alpha1.Tagemon
 func (r *Reconciler) createConfigMap(ctx context.Context, tagemon *v1alpha1.Tagemon, yaceConfig string) error {
 	logger := log.FromContext(ctx)
 
-	configMapName := tagemon.Name
+	configMapName := r.buildResourceName(tagemon, "yace-cm")
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      configMapName,
@@ -217,7 +219,7 @@ func (r *Reconciler) createConfigMap(ctx context.Context, tagemon *v1alpha1.Tage
 func (r *Reconciler) createDeployment(ctx context.Context, tagemon *v1alpha1.Tagemon) error {
 	logger := log.FromContext(ctx)
 
-	deploymentName := fmt.Sprintf("%s-yace", tagemon.Name)
+	deploymentName := r.buildResourceName(tagemon, "yace")
 	configMapName := tagemon.Status.ConfigMapName
 
 	deployment := &appsv1.Deployment{
@@ -618,4 +620,24 @@ func (r *Reconciler) buildResourceRequirements(podRes *v1alpha1.PodResources) co
 		res.Limits = podRes.Limits
 	}
 	return res
+}
+
+func (r *Reconciler) buildResourceName(tagemon *v1alpha1.Tagemon, suffix string) string {
+	serviceType := strings.ToLower(strings.TrimPrefix(tagemon.Spec.Type, "AWS/"))
+
+	shortHash := generateShortHash(fmt.Sprintf("%s-%s", tagemon.Namespace, tagemon.Name))
+
+	baseName := fmt.Sprintf("%s-%s-%s", serviceType, suffix, shortHash)
+
+	if tagemon.Spec.NamePrefix != "" {
+		return fmt.Sprintf("%s-%s", tagemon.Spec.NamePrefix, baseName)
+	}
+
+	return baseName
+}
+
+func generateShortHash(input string) string {
+	hash := sha256.Sum256([]byte(input))
+
+	return hex.EncodeToString(hash[:])[:5]
 }

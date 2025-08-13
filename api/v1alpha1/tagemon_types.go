@@ -118,6 +118,11 @@ type TagemonSpec struct {
 	// PodResources defines resource requirements for the YACE pods
 	// +kubebuilder:validation:Optional
 	PodResources *PodResources `json:"podResources,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:MaxLength=200
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
+	NamePrefix string `json:"namePrefix,omitempty"`
 }
 
 // TagemonMetric defines a CloudWatch metric configuration

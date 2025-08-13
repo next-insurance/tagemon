@@ -125,6 +125,10 @@ spec:
                   - name
                   type: object
                 type: array
+              namePrefix:
+                maxLength: 200
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                type: string
               nilToZero:
                 default: true
                 description: NilToZero is the default setting to convert nil values
