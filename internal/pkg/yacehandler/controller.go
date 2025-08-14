@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package yacehandler
 
 import (
 	"context"
@@ -40,26 +40,23 @@ import (
 	"sigs.k8s.io/yaml"
 
 	v1alpha1 "github.com/next-insurance/tagemon-dev/api/v1alpha1"
+	"github.com/next-insurance/tagemon-dev/internal/pkg/configHandler"
 )
 
 const (
 	finalizerName = "tagemon.io/finalizer"
 )
 
-type ControllerConfig struct {
-	ServiceAccountName string `yaml:"serviceAccountName"`
-}
-
 type Reconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	Config *ControllerConfig
+	Config *configHandler.Config
 }
 
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Tagemon{}).
-		Named("tagemon").
+		Named("yace-handler").
 		Complete(r)
 }
 
