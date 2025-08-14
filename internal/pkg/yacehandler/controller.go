@@ -40,7 +40,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	v1alpha1 "github.com/next-insurance/tagemon-dev/api/v1alpha1"
-	"github.com/next-insurance/tagemon-dev/internal/pkg/configHandler"
+	"github.com/next-insurance/tagemon-dev/internal/pkg/confighandler"
 )
 
 const (
@@ -50,7 +50,7 @@ const (
 type Reconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	Config *configHandler.Config
+	Config *confighandler.Config
 }
 
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {

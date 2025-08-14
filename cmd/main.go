@@ -38,7 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	tagemonv1alpha1 "github.com/next-insurance/tagemon-dev/api/v1alpha1"
-	"github.com/next-insurance/tagemon-dev/internal/pkg/configHandler"
+	"github.com/next-insurance/tagemon-dev/internal/pkg/confighandler"
 	"github.com/next-insurance/tagemon-dev/internal/pkg/yacehandler"
 	// +kubebuilder:scaffold:imports
 )
@@ -91,7 +91,7 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	// Load config AFTER logger is initialized
-	config := configHandler.LoadConfig()
+	config := confighandler.LoadConfig()
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will

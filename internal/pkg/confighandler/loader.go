@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package configHandler
+package confighandler
 
 import (
 	"github.com/spf13/viper"
@@ -23,7 +23,7 @@ import (
 
 const DefaultConfigName = "controller-config"
 
-var setupLog = ctrl.Log.WithName("configHandler")
+var setupLog = ctrl.Log.WithName("confighandler")
 
 // LoadConfig loads configuration from file and environment variables
 func LoadConfig() *Config {

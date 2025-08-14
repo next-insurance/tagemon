@@ -17,12 +17,12 @@ limitations under the License.
 package yacehandler
 
 import (
-	"github.com/next-insurance/tagemon-dev/internal/pkg/configHandler"
+	"github.com/next-insurance/tagemon-dev/internal/pkg/confighandler"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 // SetupWithManager configures the YACE handler with the manager
-func SetupWithManager(mgr ctrl.Manager, config *configHandler.Config) error {
+func SetupWithManager(mgr ctrl.Manager, config *confighandler.Config) error {
 	reconciler := &Reconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
