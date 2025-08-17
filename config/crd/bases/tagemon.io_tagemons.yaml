@@ -219,11 +219,6 @@ spec:
                   - value
                   type: object
                 type: array
-              serviceAccountRoleArn:
-                description: ServiceAccountRoleArn is the ARN of the AWS IAM role
-                  to be used by the ServiceAccount
-                pattern: ^arn:aws:iam::\d{12}:role\/[A-Za-z0-9+=,.@_\-/]+$
-                type: string
               statistics:
                 description: Statistics are the default statistics for all metrics,
                   can be overridden in the metric configuration
@@ -253,7 +248,6 @@ spec:
             - metrics
             - period
             - regions
-            - serviceAccountRoleArn
             - statistics
             - type
             type: object

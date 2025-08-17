@@ -72,11 +72,6 @@ type TagemonSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	Roles []AWSRole `json:"awsRoles"`
 
-	// ServiceAccountRoleArn is the ARN of the AWS IAM role to be used by the ServiceAccount
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Pattern=`^arn:aws:iam::\d{12}:role\/[A-Za-z0-9+=,.@_\-/]+$`
-	ServiceAccountRoleArn string `json:"serviceAccountRoleArn"`
-
 	// Statistics are the default statistics for all metrics, can be overridden in the metric configuration
 	// +kubebuilder:validation:Required
 	Statistics []Statistics `json:"statistics,omitempty"`

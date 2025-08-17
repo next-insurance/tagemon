@@ -17,5 +17,5 @@ limitations under the License.
 package confighandler
 
 type Config struct {
-	ServiceAccountName string `yaml:"serviceAccountName"`
+	ServiceAccountName string `mapstructure:"serviceAccountName"`
 }
