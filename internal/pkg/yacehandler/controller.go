@@ -237,7 +237,8 @@ func (r *Reconciler) createDeployment(ctx context.Context, tagemon *v1alpha1.Tag
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"app": deploymentName,
+						"app":                    deploymentName,
+						"app.kubernetes.io/name": "tagemon-yace",
 					},
 				},
 				Spec: corev1.PodSpec{
