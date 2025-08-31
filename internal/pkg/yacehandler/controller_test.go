@@ -564,7 +564,7 @@ func TestHandleCreate(t *testing.T) {
 		if err != nil {
 			t.Fatalf("handleCreate failed: %v", err)
 		}
-		if result.Requeue {
+		if result.RequeueAfter > 0 {
 			t.Error("expected no requeue on successful create")
 		}
 
@@ -649,7 +649,7 @@ func TestHandleCreate(t *testing.T) {
 		if err != nil {
 			t.Fatalf("handleCreate failed: %v", err)
 		}
-		if result.Requeue {
+		if result.RequeueAfter > 0 {
 			t.Error("expected no requeue on successful create")
 		}
 
@@ -811,7 +811,7 @@ func TestHandleModify(t *testing.T) {
 		if err != nil {
 			t.Fatalf("handleModify failed: %v", err)
 		}
-		if result.Requeue {
+		if result.RequeueAfter > 0 {
 			t.Error("expected no requeue on successful modify")
 		}
 
@@ -912,7 +912,7 @@ func TestHandleModify(t *testing.T) {
 		if err != nil {
 			t.Fatalf("handleModify failed: %v", err)
 		}
-		if result.Requeue {
+		if result.RequeueAfter > 0 {
 			t.Error("expected no requeue when no changes detected")
 		}
 
@@ -976,7 +976,7 @@ func TestHandleModify(t *testing.T) {
 		if err != nil {
 			t.Fatalf("handleModify should handle missing ConfigMap gracefully, got error: %v", err)
 		}
-		if result.Requeue {
+		if result.RequeueAfter > 0 {
 			t.Error("expected no requeue for missing ConfigMap")
 		}
 	})
@@ -1059,7 +1059,7 @@ func TestHandleDelete(t *testing.T) {
 		if err != nil {
 			t.Fatalf("handleDelete failed: %v", err)
 		}
-		if result.Requeue {
+		if result.RequeueAfter > 0 {
 			t.Error("expected no requeue on successful delete")
 		}
 

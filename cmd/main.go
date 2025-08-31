@@ -39,6 +39,7 @@ import (
 
 	tagemonv1alpha1 "github.com/next-insurance/tagemon-dev/api/v1alpha1"
 	"github.com/next-insurance/tagemon-dev/internal/pkg/confighandler"
+	"github.com/next-insurance/tagemon-dev/internal/pkg/thresholdshandler"
 	"github.com/next-insurance/tagemon-dev/internal/pkg/yacehandler"
 	// +kubebuilder:scaffold:imports
 )
@@ -211,6 +212,23 @@ func main() {
 		setupLog.Error(err, "unable to setup YACE handler")
 		os.Exit(1)
 	}
+
+	// Setup signal handler context
+	ctx := ctrl.SetupSignalHandler()
+
+	// Setup and start threshold monitor
+	thresholdMon, err := thresholdshandler.NewThresholdMonitor(mgr.GetClient())
+	if err != nil {
+		setupLog.Error(err, "unable to create threshold monitor")
+		os.Exit(1)
+	}
+
+	// Start the threshold monitor as a goroutine
+	go func() {
+		setupLog.Info("Starting threshold tags monitor")
+		thresholdMon.Start(ctx)
+	}()
+
 	// +kubebuilder:scaffold:builder
 
 	if metricsCertWatcher != nil {
@@ -239,7 +257,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
