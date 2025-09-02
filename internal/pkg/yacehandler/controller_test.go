@@ -1124,7 +1124,7 @@ func TestHandleDelete(t *testing.T) {
 		if err != nil {
 			t.Fatalf("handleDelete should handle missing resources gracefully, got error: %v", err)
 		}
-		if result.Requeue {
+		if result.RequeueAfter > 0 {
 			t.Error("expected no requeue when handling missing resources")
 		}
 
@@ -1168,7 +1168,7 @@ func TestHandleDelete(t *testing.T) {
 		if err != nil {
 			t.Fatalf("handleDelete should handle empty status gracefully, got error: %v", err)
 		}
-		if result.Requeue {
+		if result.RequeueAfter > 0 {
 			t.Error("expected no requeue with empty status")
 		}
 

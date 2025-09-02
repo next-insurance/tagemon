@@ -102,9 +102,9 @@ type TagemonSpec struct {
 	// +kubebuilder:validation:Optional
 	SearchTags []TagemonTag `json:"searchTags,omitempty"`
 
-	// ThresholdTags is the list of threshold tag names
+	// ThresholdTags is the list of threshold tag configurations
 	// +kubebuilder:validation:Optional
-	ThresholdTags []string `json:"thresholdTags,omitempty"`
+	ThresholdTags []ThresholdTag `json:"thresholdTags,omitempty"`
 
 	// ExportedTagsOnMetrics is a list of tag names to export on metrics
 	// +kubebuilder:validation:Optional
@@ -158,6 +158,27 @@ type TagemonTag struct {
 	// Value is the tag value
 	// +kubebuilder:validation:Required
 	Value string `json:"value"`
+}
+
+// ThresholdTagType represents the type of threshold tag value
+// +kubebuilder:validation:Enum=int;bool;percentage
+type ThresholdTagType string
+
+const (
+	ThresholdTagTypeInt        ThresholdTagType = "int"
+	ThresholdTagTypeBool       ThresholdTagType = "bool"
+	ThresholdTagTypePercentage ThresholdTagType = "percentage"
+)
+
+// ThresholdTag defines a threshold tag configuration
+type ThresholdTag struct {
+	// Type is the type of the threshold tag value
+	// +kubebuilder:validation:Required
+	Type ThresholdTagType `json:"type"`
+
+	// Key is the tag key to monitor
+	// +kubebuilder:validation:Required
+	Key string `json:"key"`
 }
 
 // TagemonStatus defines the observed state of Tagemon.

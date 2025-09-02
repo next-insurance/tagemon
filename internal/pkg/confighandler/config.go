@@ -17,5 +17,12 @@ limitations under the License.
 package confighandler
 
 type Config struct {
-	ServiceAccountName string `mapstructure:"serviceAccountName"`
+	ServiceAccountName string            `mapstructure:"serviceAccountName"`
+	TagsHandler        TagsHandlerConfig `mapstructure:"tagsHandler"`
+}
+
+type TagsHandlerConfig struct {
+	ViewARN   string `mapstructure:"viewArn"`
+	Region    string `mapstructure:"region"`
+	Namespace string `mapstructure:"namespace"`
 }

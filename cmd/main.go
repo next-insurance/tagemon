@@ -21,6 +21,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -39,7 +40,7 @@ import (
 
 	tagemonv1alpha1 "github.com/next-insurance/tagemon-dev/api/v1alpha1"
 	"github.com/next-insurance/tagemon-dev/internal/pkg/confighandler"
-	"github.com/next-insurance/tagemon-dev/internal/pkg/thresholdshandler"
+	"github.com/next-insurance/tagemon-dev/internal/pkg/tagshandler"
 	"github.com/next-insurance/tagemon-dev/internal/pkg/yacehandler"
 	// +kubebuilder:scaffold:imports
 )
@@ -216,18 +217,38 @@ func main() {
 	// Setup signal handler context
 	ctx := ctrl.SetupSignalHandler()
 
-	// Setup and start threshold monitor
-	thresholdMon, err := thresholdshandler.NewThresholdMonitor(mgr.GetClient())
-	if err != nil {
-		setupLog.Error(err, "unable to create threshold monitor")
-		os.Exit(1)
-	}
+	// Start tagshandler interval runner (every 1 minute)
+	if config.TagsHandler.ViewARN != "" {
+		go func() {
+			logger := ctrl.Log.WithName("tagshandler")
+			handler := tagshandler.New(mgr.GetClient())
+			ticker := time.NewTicker(time.Minute)
+			defer ticker.Stop()
 
-	// Start the threshold monitor as a goroutine
-	go func() {
-		setupLog.Info("Starting threshold tags monitor")
-		thresholdMon.Start(ctx)
-	}()
+			for {
+				select {
+				case <-ticker.C:
+					logger.Info("Running tag compliance check")
+					report, err := handler.CheckCompliance(
+						ctx,
+						config.TagsHandler.Namespace,
+						config.TagsHandler.ViewARN,
+						config.TagsHandler.Region,
+					)
+					if err != nil {
+						logger.Error(err, "Tag compliance check failed")
+					} else {
+						logger.Info("Tag compliance completed",
+							"totalResources", report.TotalResources,
+							"complianceRate", report.ComplianceRate,
+							"violatingResources", report.ViolatingResources)
+					}
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+	}
 
 	// +kubebuilder:scaffold:builder
 
