@@ -18,15 +18,17 @@ package yacehandler
 
 import (
 	"github.com/next-insurance/tagemon-dev/internal/pkg/confighandler"
+	"github.com/next-insurance/tagemon-dev/internal/pkg/tagshandler"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 // SetupWithManager configures the YACE handler with the manager
-func SetupWithManager(mgr ctrl.Manager, config *confighandler.Config) error {
+func SetupWithManager(mgr ctrl.Manager, config *confighandler.Config, tagsHandlerInstance *tagshandler.Handler) error {
 	reconciler := &Reconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		Config: config,
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		Config:      config,
+		TagsHandler: tagsHandlerInstance,
 	}
 
 	return reconciler.SetupWithManager(mgr)

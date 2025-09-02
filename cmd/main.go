@@ -208,8 +208,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Setup YACE handler
-	if err := yacehandler.SetupWithManager(mgr, config); err != nil {
+	// Create shared tagshandler instance if configured
+	var tagsHandlerInstance *tagshandler.Handler
+	if config.TagsHandler.ViewARN != "" {
+		tagsHandlerInstance = tagshandler.New(mgr.GetClient())
+	}
+
+	// Setup YACE handler with shared tagshandler instance
+	if err := yacehandler.SetupWithManager(mgr, config, tagsHandlerInstance); err != nil {
 		setupLog.Error(err, "unable to setup YACE handler")
 		os.Exit(1)
 	}
@@ -218,10 +224,9 @@ func main() {
 	ctx := ctrl.SetupSignalHandler()
 
 	// Start tagshandler interval runner (every 1 minute)
-	if config.TagsHandler.ViewARN != "" {
+	if tagsHandlerInstance != nil {
 		go func() {
 			logger := ctrl.Log.WithName("tagshandler")
-			handler := tagshandler.New(mgr.GetClient())
 			ticker := time.NewTicker(time.Minute)
 			defer ticker.Stop()
 
@@ -229,7 +234,7 @@ func main() {
 				select {
 				case <-ticker.C:
 					logger.Info("Running tag compliance check")
-					report, err := handler.CheckCompliance(
+					report, err := tagsHandlerInstance.CheckCompliance(
 						ctx,
 						config.TagsHandler.Namespace,
 						config.TagsHandler.ViewARN,

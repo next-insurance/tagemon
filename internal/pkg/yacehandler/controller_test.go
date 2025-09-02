@@ -50,9 +50,10 @@ func TestReconciler_Initialization(t *testing.T) {
 		config := &confighandler.Config{ServiceAccountName: "test-sa"}
 
 		reconciler := &Reconciler{
-			Client: fakeClient,
-			Scheme: scheme,
-			Config: config,
+			Client:      fakeClient,
+			Scheme:      scheme,
+			Config:      config,
+			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
 		if reconciler.Client == nil {
@@ -71,7 +72,9 @@ func TestReconciler_Initialization(t *testing.T) {
 }
 
 func TestGenerateYACEConfig(t *testing.T) {
-	reconciler := &Reconciler{}
+	reconciler := &Reconciler{
+		TagsHandler: nil, // No tagshandler needed for this test
+	}
 
 	t.Run("should generate valid YACE config with minimal spec", func(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
@@ -378,7 +381,9 @@ func TestGenerateShortHash(t *testing.T) {
 }
 
 func TestBuildResourceName(t *testing.T) {
-	reconciler := &Reconciler{}
+	reconciler := &Reconciler{
+		TagsHandler: nil, // No tagshandler needed for this test
+	}
 
 	t.Run("should build resource name with service type and suffix", func(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
@@ -553,9 +558,10 @@ func TestHandleCreate(t *testing.T) {
 			Build()
 
 		reconciler := &Reconciler{
-			Client: fakeClient,
-			Scheme: scheme,
-			Config: &confighandler.Config{ServiceAccountName: "test-sa"},
+			Client:      fakeClient,
+			Scheme:      scheme,
+			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
 		ctx := context.TODO()
@@ -638,9 +644,10 @@ func TestHandleCreate(t *testing.T) {
 			Build()
 
 		reconciler := &Reconciler{
-			Client: fakeClient,
-			Scheme: scheme,
-			Config: &confighandler.Config{ServiceAccountName: "test-sa"},
+			Client:      fakeClient,
+			Scheme:      scheme,
+			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
 		ctx := context.TODO()
@@ -691,9 +698,10 @@ func TestHandleCreate(t *testing.T) {
 		}
 
 		reconciler := &Reconciler{
-			Client: fake.NewClientBuilder().WithScheme(scheme).Build(),
-			Scheme: scheme,
-			Config: &confighandler.Config{ServiceAccountName: "test-sa"},
+			Client:      fake.NewClientBuilder().WithScheme(scheme).Build(),
+			Scheme:      scheme,
+			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
 		configMapName := reconciler.buildResourceName(tagemon, "yace-cm")
@@ -755,9 +763,10 @@ func TestHandleModify(t *testing.T) {
 		}
 
 		reconciler := &Reconciler{
-			Client: fake.NewClientBuilder().WithScheme(scheme).Build(),
-			Scheme: scheme,
-			Config: &confighandler.Config{ServiceAccountName: "test-sa"},
+			Client:      fake.NewClientBuilder().WithScheme(scheme).Build(),
+			Scheme:      scheme,
+			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
 		configMapName := reconciler.buildResourceName(tagemon, "yace-cm")
@@ -878,9 +887,10 @@ func TestHandleModify(t *testing.T) {
 			Build()
 
 		reconciler := &Reconciler{
-			Client: fakeClient,
-			Scheme: scheme,
-			Config: &confighandler.Config{ServiceAccountName: "test-sa"},
+			Client:      fakeClient,
+			Scheme:      scheme,
+			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
 		currentConfig, err := reconciler.generateYACEConfig(tagemon)
@@ -965,9 +975,10 @@ func TestHandleModify(t *testing.T) {
 			Build()
 
 		reconciler := &Reconciler{
-			Client: fakeClient,
-			Scheme: scheme,
-			Config: &confighandler.Config{ServiceAccountName: "test-sa"},
+			Client:      fakeClient,
+			Scheme:      scheme,
+			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
 		ctx := context.TODO()
@@ -1005,9 +1016,10 @@ func TestHandleDelete(t *testing.T) {
 		}
 
 		reconciler := &Reconciler{
-			Client: fake.NewClientBuilder().WithScheme(scheme).Build(),
-			Scheme: scheme,
-			Config: &confighandler.Config{ServiceAccountName: "test-sa"},
+			Client:      fake.NewClientBuilder().WithScheme(scheme).Build(),
+			Scheme:      scheme,
+			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
 		configMapName := reconciler.buildResourceName(tagemon, "yace-cm")
@@ -1113,9 +1125,10 @@ func TestHandleDelete(t *testing.T) {
 			Build()
 
 		reconciler := &Reconciler{
-			Client: fakeClient,
-			Scheme: scheme,
-			Config: &confighandler.Config{ServiceAccountName: "test-sa"},
+			Client:      fakeClient,
+			Scheme:      scheme,
+			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
 		ctx := context.TODO()
@@ -1157,9 +1170,10 @@ func TestHandleDelete(t *testing.T) {
 			Build()
 
 		reconciler := &Reconciler{
-			Client: fakeClient,
-			Scheme: scheme,
-			Config: &confighandler.Config{ServiceAccountName: "test-sa"},
+			Client:      fakeClient,
+			Scheme:      scheme,
+			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
 		ctx := context.TODO()
@@ -1214,9 +1228,10 @@ func TestCreateConfigMap(t *testing.T) {
 
 		fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 		reconciler := &Reconciler{
-			Client: fakeClient,
-			Scheme: scheme,
-			Config: &confighandler.Config{ServiceAccountName: "test-sa"},
+			Client:      fakeClient,
+			Scheme:      scheme,
+			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
 		yaceConfig, err := reconciler.generateYACEConfig(tagemon)
@@ -1302,9 +1317,10 @@ func TestCreateConfigMap(t *testing.T) {
 
 		fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 		reconciler := &Reconciler{
-			Client: fakeClient,
-			Scheme: scheme,
-			Config: &confighandler.Config{ServiceAccountName: "test-sa"},
+			Client:      fakeClient,
+			Scheme:      scheme,
+			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
 		yaceConfig, err := reconciler.generateYACEConfig(tagemon)
@@ -1376,9 +1392,10 @@ func TestCreateDeployment(t *testing.T) {
 
 		fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 		reconciler := &Reconciler{
-			Client: fakeClient,
-			Scheme: scheme,
-			Config: &confighandler.Config{ServiceAccountName: "test-sa"},
+			Client:      fakeClient,
+			Scheme:      scheme,
+			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
 		ctx := context.TODO()
@@ -1465,9 +1482,10 @@ func TestCreateDeployment(t *testing.T) {
 
 		fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 		reconciler := &Reconciler{
-			Client: fakeClient,
-			Scheme: scheme,
-			Config: &confighandler.Config{ServiceAccountName: "test-sa"},
+			Client:      fakeClient,
+			Scheme:      scheme,
+			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
 		ctx := context.TODO()
@@ -1528,9 +1546,10 @@ func TestUpdateConfigMap(t *testing.T) {
 		}
 
 		reconciler := &Reconciler{
-			Client: fake.NewClientBuilder().WithScheme(scheme).Build(),
-			Scheme: scheme,
-			Config: &confighandler.Config{ServiceAccountName: "test-sa"},
+			Client:      fake.NewClientBuilder().WithScheme(scheme).Build(),
+			Scheme:      scheme,
+			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
 		configMapName := reconciler.buildResourceName(tagemon, "yace-cm")
@@ -1609,9 +1628,10 @@ func TestUpdateConfigMap(t *testing.T) {
 		}
 
 		reconciler := &Reconciler{
-			Client: fake.NewClientBuilder().WithScheme(scheme).Build(),
-			Scheme: scheme,
-			Config: &confighandler.Config{ServiceAccountName: "test-sa"},
+			Client:      fake.NewClientBuilder().WithScheme(scheme).Build(),
+			Scheme:      scheme,
+			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
 		currentConfig, err := reconciler.generateYACEConfig(tagemon)
@@ -1697,9 +1717,10 @@ func TestDeleteConfigMap(t *testing.T) {
 			Build()
 
 		reconciler := &Reconciler{
-			Client: fakeClient,
-			Scheme: scheme,
-			Config: &confighandler.Config{ServiceAccountName: "test-sa"},
+			Client:      fakeClient,
+			Scheme:      scheme,
+			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
 		ctx := context.TODO()
@@ -1736,9 +1757,10 @@ func TestDeleteConfigMap(t *testing.T) {
 
 		fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 		reconciler := &Reconciler{
-			Client: fakeClient,
-			Scheme: scheme,
-			Config: &confighandler.Config{ServiceAccountName: "test-sa"},
+			Client:      fakeClient,
+			Scheme:      scheme,
+			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
 		ctx := context.TODO()
@@ -1791,9 +1813,10 @@ func TestDeleteDeployment(t *testing.T) {
 			Build()
 
 		reconciler := &Reconciler{
-			Client: fakeClient,
-			Scheme: scheme,
-			Config: &confighandler.Config{ServiceAccountName: "test-sa"},
+			Client:      fakeClient,
+			Scheme:      scheme,
+			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
 		ctx := context.TODO()
@@ -1830,9 +1853,10 @@ func TestDeleteDeployment(t *testing.T) {
 
 		fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 		reconciler := &Reconciler{
-			Client: fakeClient,
-			Scheme: scheme,
-			Config: &confighandler.Config{ServiceAccountName: "test-sa"},
+			Client:      fakeClient,
+			Scheme:      scheme,
+			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
 		ctx := context.TODO()

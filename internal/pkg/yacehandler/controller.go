@@ -41,6 +41,7 @@ import (
 
 	v1alpha1 "github.com/next-insurance/tagemon-dev/api/v1alpha1"
 	"github.com/next-insurance/tagemon-dev/internal/pkg/confighandler"
+	"github.com/next-insurance/tagemon-dev/internal/pkg/tagshandler"
 )
 
 const (
@@ -49,8 +50,9 @@ const (
 
 type Reconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	Config *confighandler.Config
+	Scheme      *runtime.Scheme
+	Config      *confighandler.Config
+	TagsHandler *tagshandler.Handler
 }
 
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -125,6 +127,17 @@ func (r *Reconciler) handleCreate(ctx context.Context, tagemon *v1alpha1.Tagemon
 	}
 
 	logger.Info("TAGEMON CREATE SUCCESS", "name", tagemon.Name, "type", tagemon.Spec.Type, "regions", tagemon.Spec.Regions)
+
+	// Trigger tagshandler on create event
+	if r.TagsHandler != nil {
+		go func() {
+			logger.Info("Triggering TagsHandler compliance check on CREATE", "name", tagemon.Name)
+			if _, err := r.TagsHandler.CheckCompliance(context.Background(), r.Config.TagsHandler.Namespace, r.Config.TagsHandler.ViewARN, r.Config.TagsHandler.Region); err != nil {
+				logger.Error(err, "TagsHandler compliance check failed on CREATE", "name", tagemon.Name)
+			}
+		}()
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -154,6 +167,17 @@ func (r *Reconciler) handleModify(ctx context.Context, tagemon *v1alpha1.Tagemon
 	}
 
 	logger.Info("TAGEMON MODIFY SUCCESS", "name", tagemon.Name, "type", tagemon.Spec.Type, "regions", tagemon.Spec.Regions)
+
+	// Trigger tagshandler on modify event
+	if r.TagsHandler != nil {
+		go func() {
+			logger.Info("Triggering TagsHandler compliance check on MODIFY", "name", tagemon.Name)
+			if _, err := r.TagsHandler.CheckCompliance(context.Background(), r.Config.TagsHandler.Namespace, r.Config.TagsHandler.ViewARN, r.Config.TagsHandler.Region); err != nil {
+				logger.Error(err, "TagsHandler compliance check failed on MODIFY", "name", tagemon.Name)
+			}
+		}()
+	}
+
 	return ctrl.Result{}, nil
 }
 
