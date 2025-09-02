@@ -103,7 +103,8 @@ func TestGenerateYACEConfig(t *testing.T) {
 			"apiVersion: v1alpha1",
 			"sts-region: us-east-1",
 			"discovery:",
-			"exportedTagsOnMetrics:",
+			"AWS/S3:",
+			"- Name",
 			"jobs:",
 			"type: AWS/S3",
 			"regions:",
@@ -154,7 +155,6 @@ func TestGenerateYACEConfig(t *testing.T) {
 					},
 					{Name: "DatabaseConnections"},
 				},
-				ExportedTagsOnMetrics: []string{"Name", "Environment"},
 			},
 		}
 
@@ -195,8 +195,7 @@ func TestGenerateYACEConfig(t *testing.T) {
 				Metrics: []v1alpha1.TagemonMetric{
 					{Name: "Duration"},
 				},
-				SearchTags:            []v1alpha1.TagemonTag{},
-				ExportedTagsOnMetrics: []string{},
+				SearchTags: []v1alpha1.TagemonTag{},
 			},
 		}
 

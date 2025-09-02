@@ -106,10 +106,6 @@ type TagemonSpec struct {
 	// +kubebuilder:validation:Optional
 	ThresholdTags []ThresholdTag `json:"thresholdTags,omitempty"`
 
-	// ExportedTagsOnMetrics is a list of tag names to export on metrics
-	// +kubebuilder:validation:Optional
-	ExportedTagsOnMetrics []string `json:"exportedTagsOnMetrics,omitempty"`
-
 	// PodResources defines resource requirements for the YACE pods
 	// +kubebuilder:validation:Optional
 	PodResources *PodResources `json:"podResources,omitempty"`

@@ -73,12 +73,6 @@ spec:
                   type: object
                 minItems: 1
                 type: array
-              exportedTagsOnMetrics:
-                description: ExportedTagsOnMetrics is a list of tag names to export
-                  on metrics
-                items:
-                  type: string
-                type: array
               length:
                 description: Length is the default length in seconds for metric data
                   retrieval, can be overridden in the metric configuration

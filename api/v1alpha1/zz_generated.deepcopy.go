@@ -223,11 +223,6 @@ func (in *TagemonSpec) DeepCopyInto(out *TagemonSpec) {
 		*out = make([]ThresholdTag, len(*in))
 		copy(*out, *in)
 	}
-	if in.ExportedTagsOnMetrics != nil {
-		in, out := &in.ExportedTagsOnMetrics, &out.ExportedTagsOnMetrics
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
 	if in.PodResources != nil {
 		in, out := &in.PodResources, &out.PodResources
 		*out = new(PodResources)
