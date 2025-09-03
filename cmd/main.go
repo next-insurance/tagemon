@@ -227,7 +227,15 @@ func main() {
 	if tagsHandlerInstance != nil {
 		go func() {
 			logger := ctrl.Log.WithName("tagshandler")
-			ticker := time.NewTicker(time.Minute)
+
+			// Use configured interval, default to 30 minutes if not set
+			interval := 30 * time.Minute
+			if config.TagsHandler.Interval != nil {
+				interval = *config.TagsHandler.Interval
+			}
+
+			logger.Info("Starting tagshandler with interval", "interval", interval)
+			ticker := time.NewTicker(interval)
 			defer ticker.Stop()
 
 			for {

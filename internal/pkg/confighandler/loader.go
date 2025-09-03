@@ -46,6 +46,7 @@ func LoadConfig() *Config {
 	_ = v.BindEnv("tagsHandler.viewArn", "TAGEMON_TAGSHANDLER_VIEWARN")
 	_ = v.BindEnv("tagsHandler.region", "TAGEMON_TAGSHANDLER_REGION")
 	_ = v.BindEnv("tagsHandler.namespace", "TAGEMON_TAGSHANDLER_NAMESPACE")
+	_ = v.BindEnv("tagsHandler.interval", "TAGEMON_TAGSHANDLER_INTERVAL")
 
 	// Try to read config file
 	if err := v.ReadInConfig(); err != nil {
