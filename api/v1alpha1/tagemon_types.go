@@ -175,6 +175,10 @@ type ThresholdTag struct {
 	// Key is the tag key to monitor
 	// +kubebuilder:validation:Required
 	Key string `json:"key"`
+
+	// ResourceType is the AWS resource type to apply this threshold tag to
+	// +kubebuilder:validation:Required
+	ResourceType string `json:"resourceType"`
 }
 
 // TagemonStatus defines the observed state of Tagemon.

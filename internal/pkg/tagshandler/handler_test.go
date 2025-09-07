@@ -45,12 +45,14 @@ func TestBuildTagPolicy(t *testing.T) {
 						Type: "AWS/S3",
 						ThresholdTags: []tagemonv1alpha1.ThresholdTag{
 							{
-								Type: tagemonv1alpha1.ThresholdTagTypeInt,
-								Key:  "retention-days",
+								Type:         tagemonv1alpha1.ThresholdTagTypeInt,
+								Key:          "retention-days",
+								ResourceType: "bucket",
 							},
 							{
-								Type: tagemonv1alpha1.ThresholdTagTypeBool,
-								Key:  "public",
+								Type:         tagemonv1alpha1.ThresholdTagTypeBool,
+								Key:          "public",
+								ResourceType: "bucket",
 							},
 						},
 					},
@@ -65,8 +67,9 @@ func TestBuildTagPolicy(t *testing.T) {
 						Type: "AWS/S3",
 						ThresholdTags: []tagemonv1alpha1.ThresholdTag{
 							{
-								Type: tagemonv1alpha1.ThresholdTagTypePercentage,
-								Key:  "utilization",
+								Type:         tagemonv1alpha1.ThresholdTagTypePercentage,
+								Key:          "utilization",
+								ResourceType: "bucket",
 							},
 						},
 					},
@@ -76,8 +79,9 @@ func TestBuildTagPolicy(t *testing.T) {
 						Type: "AWS/EC2",
 						ThresholdTags: []tagemonv1alpha1.ThresholdTag{
 							{
-								Type: tagemonv1alpha1.ThresholdTagTypeInt,
-								Key:  "ttl",
+								Type:         tagemonv1alpha1.ThresholdTagTypeInt,
+								Key:          "ttl",
+								ResourceType: "instance",
 							},
 						},
 					},
@@ -87,6 +91,28 @@ func TestBuildTagPolicy(t *testing.T) {
 		{
 			name:     "empty tagemon list",
 			tagemons: []tagemonv1alpha1.Tagemon{},
+		},
+		{
+			name: "tagemon with non-existent resource type",
+			tagemons: []tagemonv1alpha1.Tagemon{
+				{
+					Spec: tagemonv1alpha1.TagemonSpec{
+						Type: "AWS/EC2",
+						ThresholdTags: []tagemonv1alpha1.ThresholdTag{
+							{
+								Type:         tagemonv1alpha1.ThresholdTagTypeInt,
+								Key:          "cpu-threshold",
+								ResourceType: "nonexistent-resource-type",
+							},
+							{
+								Type:         tagemonv1alpha1.ThresholdTagTypeInt,
+								Key:          "storage-threshold",
+								ResourceType: "instance",
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 
@@ -100,6 +126,24 @@ func TestBuildTagPolicy(t *testing.T) {
 			if len(tt.tagemons) > 0 && len(tt.tagemons[0].Spec.ThresholdTags) > 0 {
 				assert.NotEmpty(t, policy.Blueprints)
 				assert.NotEmpty(t, policy.Resources)
+
+				// Special verification for non-existent resource type test
+				if tt.name == "tagemon with non-existent resource type" {
+					// Should create 2 blueprints: one for nonexistent-resource-type, one for instance
+					assert.Len(t, policy.Blueprints, 2)
+
+					// Should create 2 resource configs in EC2 service
+					assert.Contains(t, policy.Resources, "ec2")
+					assert.Len(t, policy.Resources["ec2"], 2)
+
+					// Both resource types should be created, regardless of whether they exist in AWS
+					assert.Contains(t, policy.Resources["ec2"], "nonexistent-resource-type")
+					assert.Contains(t, policy.Resources["ec2"], "instance")
+
+					// Blueprints should be created for both
+					assert.Contains(t, policy.Blueprints, "ec2-nonexistent-resource-type-base")
+					assert.Contains(t, policy.Blueprints, "ec2-instance-base")
+				}
 			}
 		})
 	}

@@ -234,6 +234,10 @@ spec:
                     key:
                       description: Key is the tag key to monitor
                       type: string
+                    resourceType:
+                      description: ResourceType is the AWS resource type to apply
+                        this threshold tag to
+                      type: string
                     type:
                       description: Type is the type of the threshold tag value
                       enum:
@@ -243,6 +247,7 @@ spec:
                       type: string
                   required:
                   - key
+                  - resourceType
                   - type
                   type: object
                 type: array

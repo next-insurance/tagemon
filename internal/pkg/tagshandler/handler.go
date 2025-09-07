@@ -113,7 +113,7 @@ func (h *Handler) CheckCompliance(ctx context.Context, namespace string, viewARN
 	return report, nil
 }
 
-// buildTagPolicy creates a tag-patrol policy from Tagemon CRs
+// buildTagPolicy creates a tag-patrol policy from Tagemon CRs without validation
 func (h *Handler) buildTagPolicy(tagemons []tagemonv1alpha1.Tagemon) (*policyTypes.Policy, map[string]map[string]tagemonv1alpha1.ThresholdTagType) {
 	policy := &policyTypes.Policy{
 		Blueprints: make(map[string]*policyTypes.Blueprint),
@@ -136,46 +136,56 @@ func (h *Handler) buildTagPolicy(tagemons []tagemonv1alpha1.Tagemon) (*policyTyp
 			thresholdTagsMap[serviceType] = make(map[string]tagemonv1alpha1.ThresholdTagType)
 		}
 
-		// Build mandatory keys and validations from threshold tags
-		var mandatoryKeys []string
-		validations := make(map[string]*policyTypes.Validation)
-
+		// Group threshold tags by resource type
+		resourceTypeGroups := make(map[string][]tagemonv1alpha1.ThresholdTag)
 		for _, thresholdTag := range tagemon.Spec.ThresholdTags {
-			mandatoryKeys = append(mandatoryKeys, thresholdTag.Key)
+			resourceType := thresholdTag.ResourceType
+			resourceTypeGroups[resourceType] = append(resourceTypeGroups[resourceType], thresholdTag)
 			thresholdTagsMap[serviceType][thresholdTag.Key] = thresholdTag.Type
-
-			// Create validation based on type
-			validation := &policyTypes.Validation{}
-			switch thresholdTag.Type {
-			case tagemonv1alpha1.ThresholdTagTypeInt:
-				validation.Type = "int"
-			case tagemonv1alpha1.ThresholdTagTypeBool:
-				validation.Type = "bool"
-			case tagemonv1alpha1.ThresholdTagTypePercentage:
-				validation.Type = "int"
-				validation.MinValue = 0
-				validation.MaxValue = 100
-			}
-			validations[thresholdTag.Key] = validation
 		}
 
-		// Create blueprint for this service if it has threshold tags
-		if len(mandatoryKeys) > 0 {
-			blueprintName := fmt.Sprintf("%s-base", serviceType)
-			policy.Blueprints[blueprintName] = &policyTypes.Blueprint{
-				TagPolicy: &policyTypes.TagPolicy{
-					MandatoryKeys: mandatoryKeys,
-					Validations:   validations,
-				},
+		// Create blueprints and resource configs for each resource type group
+		for resourceType, thresholdTags := range resourceTypeGroups {
+			var mandatoryKeys []string
+			validations := make(map[string]*policyTypes.Validation)
+
+			for _, thresholdTag := range thresholdTags {
+				mandatoryKeys = append(mandatoryKeys, thresholdTag.Key)
+
+				// Create validation based on type
+				validation := &policyTypes.Validation{}
+				switch thresholdTag.Type {
+				case tagemonv1alpha1.ThresholdTagTypeInt:
+					validation.Type = "int"
+				case tagemonv1alpha1.ThresholdTagTypeBool:
+					validation.Type = "bool"
+				case tagemonv1alpha1.ThresholdTagTypePercentage:
+					validation.Type = "int"
+					validation.MinValue = 0
+					validation.MaxValue = 100
+				}
+				validations[thresholdTag.Key] = validation
 			}
 
-			if policy.Resources[serviceType] == nil {
-				policy.Resources[serviceType] = make(map[string]*policyTypes.ResourceConfig)
-			}
+			// Create blueprint for this service-resourcetype combination
+			if len(mandatoryKeys) > 0 {
+				blueprintName := fmt.Sprintf("%s-%s-base", serviceType, resourceType)
 
-			// Use wildcard to match all resource types for this service
-			policy.Resources[serviceType]["*"] = &policyTypes.ResourceConfig{
-				Extends: []string{fmt.Sprintf("blueprints.%s", blueprintName)},
+				policy.Blueprints[blueprintName] = &policyTypes.Blueprint{
+					TagPolicy: &policyTypes.TagPolicy{
+						MandatoryKeys: mandatoryKeys,
+						Validations:   validations,
+					},
+				}
+
+				if policy.Resources[serviceType] == nil {
+					policy.Resources[serviceType] = make(map[string]*policyTypes.ResourceConfig)
+				}
+
+				// Use the specific resource type or wildcard
+				policy.Resources[serviceType][resourceType] = &policyTypes.ResourceConfig{
+					Extends: []string{fmt.Sprintf("blueprints.%s", blueprintName)},
+				}
 			}
 		}
 	}
@@ -368,6 +378,20 @@ func (h *Handler) processResults(ctx context.Context, results []patrol.Result, t
 
 		serviceType := patrolResult.Definition.Service
 		thresholdTags := thresholdTagsMap[serviceType]
+
+		// Check if the response is empty - this can indicate wrong resource type
+		if len(patrolResult.Resources) == 0 {
+			// Extract resource type from the patrol result definition
+			resourceType := "unknown"
+			if patrolResult.Definition.ResourceType != "" {
+				resourceType = patrolResult.Definition.ResourceType
+			}
+
+			logger.Info("Empty response for resource type",
+				"service", serviceType,
+				"resourceType", resourceType,
+				"message", "Empty response for type: "+resourceType+", this can indicate a wrong type has been provided")
+		}
 
 		// Process each resource in the result
 		for _, resource := range patrolResult.Resources {
