@@ -21,7 +21,6 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
-	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -220,48 +219,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Setup tags handler runner
+	if err := tagshandler.SetupWithManager(mgr, config, tagsHandlerInstance); err != nil {
+		setupLog.Error(err, "unable to setup tags handler")
+		os.Exit(1)
+	}
+
 	// Setup signal handler context
 	ctx := ctrl.SetupSignalHandler()
-
-	// Start tagshandler interval runner (every 1 minute)
-	if tagsHandlerInstance != nil {
-		go func() {
-			logger := ctrl.Log.WithName("tagshandler")
-
-			// Use configured interval, default to 30 minutes if not set
-			interval := 30 * time.Minute
-			if config.TagsHandler.Interval != nil {
-				interval = *config.TagsHandler.Interval
-			}
-
-			logger.Info("Starting tagshandler with interval", "interval", interval)
-			ticker := time.NewTicker(interval)
-			defer ticker.Stop()
-
-			for {
-				select {
-				case <-ticker.C:
-					logger.Info("Running tag compliance check")
-					report, err := tagsHandlerInstance.CheckCompliance(
-						ctx,
-						config.TagsHandler.Namespace,
-						config.TagsHandler.ViewARN,
-						config.TagsHandler.Region,
-					)
-					if err != nil {
-						logger.Error(err, "Tag compliance check failed")
-					} else {
-						logger.Info("Tag compliance completed",
-							"totalResources", report.TotalResources,
-							"complianceRate", report.ComplianceRate,
-							"violatingResources", report.ViolatingResources)
-					}
-				case <-ctx.Done():
-					return
-				}
-			}
-		}()
-	}
 
 	// +kubebuilder:scaffold:builder
 

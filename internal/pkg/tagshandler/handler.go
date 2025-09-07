@@ -22,15 +22,19 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/eliran89c/tag-patrol/pkg/cloudresource/provider/aws"
 	"github.com/eliran89c/tag-patrol/pkg/patrol"
 	policyTypes "github.com/eliran89c/tag-patrol/pkg/policy/types"
 	tagemonv1alpha1 "github.com/next-insurance/tagemon-dev/api/v1alpha1"
 	"github.com/prometheus/client_golang/prometheus"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
+
+	"github.com/next-insurance/tagemon-dev/internal/pkg/confighandler"
 )
 
 // Handler manages tag compliance checking using tag-patrol
@@ -217,6 +221,78 @@ func (h *Handler) tagToMetricName(tagKey string) string {
 
 	return "tagemon_" + metricName
 }
+
+// =============================================================================
+// SCHEDULER - Runs compliance checks on startup and intervals
+// =============================================================================
+
+// Scheduler implements the Runnable interface to run compliance checks after cache is ready
+type Scheduler struct {
+	mgr      ctrl.Manager
+	handler  *Handler
+	config   *confighandler.Config
+	interval time.Duration
+}
+
+// Start implements the Runnable interface
+func (s *Scheduler) Start(ctx context.Context) error {
+	logger := log.FromContext(ctx).WithName("tagshandler-scheduler")
+
+	// Wait for cache to sync before running initial check
+	logger.Info("Waiting for cache to sync before running initial compliance check")
+	if !s.mgr.GetCache().WaitForCacheSync(ctx) {
+		return fmt.Errorf("failed to wait for caches to sync")
+	}
+
+	// Run initial compliance check on startup
+	logger.Info("Running initial tag compliance check on startup")
+	report, err := s.handler.CheckCompliance(
+		ctx,
+		s.config.TagsHandler.Namespace,
+		s.config.TagsHandler.ViewARN,
+		s.config.TagsHandler.Region,
+	)
+	if err != nil {
+		logger.Error(err, "Initial tag compliance check failed")
+	} else {
+		logger.Info("Initial tag compliance check completed",
+			"totalResources", report.TotalResources,
+			"complianceRate", report.ComplianceRate,
+			"violatingResources", report.ViolatingResources)
+	}
+
+	// Start interval runner
+	logger.Info("Starting tagshandler with interval", "interval", s.interval)
+	ticker := time.NewTicker(s.interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			logger.Info("Running tag compliance check")
+			report, err := s.handler.CheckCompliance(
+				ctx,
+				s.config.TagsHandler.Namespace,
+				s.config.TagsHandler.ViewARN,
+				s.config.TagsHandler.Region,
+			)
+			if err != nil {
+				logger.Error(err, "Tag compliance check failed")
+			} else {
+				logger.Info("Tag compliance completed",
+					"totalResources", report.TotalResources,
+					"complianceRate", report.ComplianceRate,
+					"violatingResources", report.ViolatingResources)
+			}
+		case <-ctx.Done():
+			return nil
+		}
+	}
+}
+
+// =============================================================================
+// UTILITY FUNCTIONS
+// =============================================================================
 
 // extractResourceName extracts a readable resource name from tags or ARN
 func (h *Handler) extractResourceName(resourceARN string, tags map[string]string) string {
