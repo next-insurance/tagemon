@@ -19,6 +19,7 @@ package tagshandler
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -37,17 +38,17 @@ import (
 	"github.com/next-insurance/tagemon-dev/internal/pkg/confighandler"
 )
 
-// Handler manages tag compliance checking using tag-patrol
 type Handler struct {
-	client        client.Client
-	metricsGauges map[string]*prometheus.GaugeVec
+	client             client.Client
+	metricsGauges      map[string]*prometheus.GaugeVec
+	nonCompliantGauges map[string]*prometheus.GaugeVec
 }
 
-// creates a new TagsHandler instance
 func New(k8sClient client.Client) *Handler {
 	return &Handler{
-		client:        k8sClient,
-		metricsGauges: make(map[string]*prometheus.GaugeVec),
+		client:             k8sClient,
+		metricsGauges:      make(map[string]*prometheus.GaugeVec),
+		nonCompliantGauges: make(map[string]*prometheus.GaugeVec),
 	}
 }
 
@@ -206,6 +207,29 @@ func (h *Handler) getOrCreateMetric(tagKey string) *prometheus.GaugeVec {
 	return gauge
 }
 
+func (h *Handler) getOrCreateNonCompliantMetric() *prometheus.GaugeVec {
+	metricName := "tagemon_resources_non_compliant_count"
+
+	if gauge, exists := h.nonCompliantGauges[metricName]; exists {
+		return gauge
+	}
+
+	// Create new gauge
+	gauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: metricName,
+			Help: "Current count of non-compliant resources by type and account",
+		},
+		[]string{"resource_type", "account_id"},
+	)
+
+	// Register with controller-runtime metrics
+	metrics.Registry.MustRegister(gauge)
+	h.nonCompliantGauges[metricName] = gauge
+
+	return gauge
+}
+
 // tagToMetricName converts a tag key to a valid Prometheus metric name
 func (h *Handler) tagToMetricName(tagKey string) string {
 	// Convert to lowercase and replace invalid characters with underscores
@@ -331,6 +355,11 @@ func (h *Handler) processResults(ctx context.Context, results []patrol.Result, t
 	compliantResources := 0
 	violatingResources := 0
 
+	// Track non-compliant counts by resource type and account for this scan
+	nonCompliantCounts := make(map[string]map[string]int)
+	// Track all resource types and accounts encountered in this scan
+	allResourceTypes := make(map[string]map[string]bool)
+
 	for _, patrolResult := range results {
 		if patrolResult.Error != nil {
 			logger.Error(patrolResult.Error, "Error processing patrol result", "service", patrolResult.Definition.Service)
@@ -347,30 +376,29 @@ func (h *Handler) processResults(ctx context.Context, results []patrol.Result, t
 			accountID := h.extractAccountID(resource.ID())
 			resourceType := fmt.Sprintf("%s/%s", strings.ToLower(resource.Service()), strings.ToLower(resource.Type()))
 
+			// Track this resource type and account combination
+			if allResourceTypes[resourceType] == nil {
+				allResourceTypes[resourceType] = make(map[string]bool)
+			}
+			allResourceTypes[resourceType][accountID] = true
+
 			if resource.IsCompliant() {
 				compliantResources++
-				// Create Prometheus metrics for compliant resources
 				h.createMetricsForResource(resource, thresholdTags, resourceName, accountID, resourceType)
 			} else {
 				violatingResources++
-				// Log non-compliant resources with details
-				violations := make([]string, 0)
-				for _, complianceError := range resource.ComplianceErrors() {
-					violations = append(violations, complianceError.Message)
-				}
+				h.handleNonCompliantResource(resource, resourceName, accountID, resourceType)
 
-				logger.Info("❌ NON-COMPLIANT RESOURCE FOUND",
-					"resourceName", resourceName,
-					"accountID", accountID,
-					"type", resourceType,
-					"resourceARN", resource.ID(),
-					"violations", violations,
-					"allTags", resource.Tags())
+				if nonCompliantCounts[resourceType] == nil {
+					nonCompliantCounts[resourceType] = make(map[string]int)
+				}
+				nonCompliantCounts[resourceType][accountID]++
 			}
 		}
 	}
 
-	// Create summary report
+	h.updateNonCompliantMetrics(nonCompliantCounts, allResourceTypes)
+
 	complianceRate := float64(0)
 	if totalResources > 0 {
 		complianceRate = float64(compliantResources) / float64(totalResources) * 100
@@ -381,13 +409,12 @@ func (h *Handler) processResults(ctx context.Context, results []patrol.Result, t
 		CompliantResources: compliantResources,
 		ViolatingResources: violatingResources,
 		ComplianceRate:     complianceRate,
-		Results:            nil, // No longer needed
+		Results:            nil,
 	}
 }
 
 // createMetricsForResource creates Prometheus metrics for compliant resources
 func (h *Handler) createMetricsForResource(resource interface{}, thresholdTags map[string]tagemonv1alpha1.ThresholdTagType, resourceName, accountID, resourceType string) {
-	// Type assertion to get the resource interface methods
 	type CloudResource interface {
 		ID() string
 		Tags() map[string]string
@@ -400,7 +427,6 @@ func (h *Handler) createMetricsForResource(resource interface{}, thresholdTags m
 
 	tags := r.Tags()
 
-	// Create metrics for each threshold tag
 	for tagKey, tagType := range thresholdTags {
 		if tagValue, exists := tags[tagKey]; exists && tagValue != "" {
 			gauge := h.getOrCreateMetric(tagKey)
@@ -423,6 +449,83 @@ func (h *Handler) createMetricsForResource(resource interface{}, thresholdTags m
 			if err == nil {
 				gauge.WithLabelValues(resourceName, accountID, resourceType).Set(value)
 			}
+		}
+	}
+}
+
+func (h *Handler) handleNonCompliantResource(resource interface{}, resourceName, accountID, resourceType string) {
+	resourceValue := reflect.ValueOf(resource)
+
+	idMethod := resourceValue.MethodByName("ID")
+	if !idMethod.IsValid() {
+		return
+	}
+
+	complianceErrorsMethod := resourceValue.MethodByName("ComplianceErrors")
+	if !complianceErrorsMethod.IsValid() {
+		return
+	}
+
+	idResults := idMethod.Call(nil)
+	if len(idResults) == 0 {
+		return
+	}
+	resourceARN := idResults[0].String()
+
+	complianceErrorsResults := complianceErrorsMethod.Call(nil)
+	var violations []string
+
+	if len(complianceErrorsResults) > 0 {
+		complianceErrorsValue := complianceErrorsResults[0]
+
+		if complianceErrorsValue.Kind() == reflect.Slice && complianceErrorsValue.Len() > 0 {
+			for i := 0; i < complianceErrorsValue.Len(); i++ {
+				errorValue := complianceErrorsValue.Index(i)
+
+				var errorMsg string
+				if errorValue.Kind() == reflect.Ptr {
+					elem := errorValue.Elem()
+					if elem.Kind() == reflect.Struct {
+						messageField := elem.FieldByName("Message")
+						if messageField.IsValid() && messageField.CanInterface() {
+							errorMsg = messageField.String()
+						}
+					}
+				}
+
+				if errorMsg != "" {
+					violations = append(violations, errorMsg)
+				} else {
+					violations = append(violations, "Tag compliance violation")
+				}
+			}
+		}
+	}
+
+	if len(violations) == 0 {
+		violations = append(violations, "Tag compliance violation detected")
+	}
+
+	log.FromContext(context.Background()).Info("Non-compliant resource detected",
+		"resource", resourceName,
+		"type", resourceType,
+		"arn", resourceARN,
+		"account", accountID,
+		"violations", violations)
+}
+
+func (h *Handler) updateNonCompliantMetrics(nonCompliantCounts map[string]map[string]int, allResourceTypes map[string]map[string]bool) {
+	gauge := h.getOrCreateNonCompliantMetric()
+
+	gauge.Reset()
+
+	for resourceType, accounts := range allResourceTypes {
+		for accountID := range accounts {
+			count := 0
+			if nonCompliantCounts[resourceType] != nil {
+				count = nonCompliantCounts[resourceType][accountID]
+			}
+			gauge.WithLabelValues(resourceType, accountID).Set(float64(count))
 		}
 	}
 }
