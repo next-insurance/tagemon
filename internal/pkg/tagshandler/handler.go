@@ -149,6 +149,8 @@ func (h *Handler) buildTagPolicy(tagemons []tagemonv1alpha1.Tagemon) (*policyTyp
 			var mandatoryKeys []string
 			validations := make(map[string]*policyTypes.Validation)
 
+			mandatoryKeys = append(mandatoryKeys, "Name")
+
 			for _, thresholdTag := range thresholdTags {
 				mandatoryKeys = append(mandatoryKeys, thresholdTag.Key)
 
@@ -207,7 +209,7 @@ func (h *Handler) getOrCreateMetric(tagKey string) *prometheus.GaugeVec {
 			Name: metricName,
 			Help: fmt.Sprintf("Tagemon threshold tag value for %s", tagKey),
 		},
-		[]string{"resource_name", "account_id", "type"},
+		[]string{"tag_Name", "account_id", "type"},
 	)
 
 	// Register with controller-runtime metrics
@@ -328,22 +330,22 @@ func (s *Scheduler) Start(ctx context.Context) error {
 // UTILITY FUNCTIONS
 // =============================================================================
 
-// extractResourceName extracts a readable resource name from tags or ARN
 func (h *Handler) extractResourceName(resourceARN string, tags map[string]string) string {
-	// Try to get name from common tag keys
-	for _, nameKey := range []string{"Name", "name", "resource-name", "ResourceName"} {
+	if name, exists := tags["Name"]; exists && name != "" {
+		return name
+	}
+
+	for _, nameKey := range []string{"name", "resource-name", "ResourceName"} {
 		if name, exists := tags[nameKey]; exists && name != "" {
 			return name
 		}
 	}
 
-	// Fall back to extracting from ARN
 	parts := strings.Split(resourceARN, "/")
 	if len(parts) > 0 {
 		return parts[len(parts)-1]
 	}
 
-	// Last resort: use the full ARN
 	return resourceARN
 }
 
@@ -360,6 +362,8 @@ func (h *Handler) extractAccountID(resourceARN string) string {
 // processResults processes tag-patrol results, creates metrics for compliant resources and logs non-compliant ones
 func (h *Handler) processResults(ctx context.Context, results []patrol.Result, thresholdTagsMap map[string]map[string]tagemonv1alpha1.ThresholdTagType) *ComplianceReport {
 	logger := log.FromContext(ctx)
+
+	h.resetAllThresholdMetrics()
 
 	totalResources := 0
 	compliantResources := 0
@@ -396,7 +400,7 @@ func (h *Handler) processResults(ctx context.Context, results []patrol.Result, t
 		// Process each resource in the result
 		for _, resource := range patrolResult.Resources {
 			totalResources++
-			resourceName := h.extractResourceName(resource.ID(), resource.Tags())
+			tagName := h.extractResourceName(resource.ID(), resource.Tags())
 			accountID := h.extractAccountID(resource.ID())
 			resourceType := fmt.Sprintf("%s/%s", strings.ToLower(resource.Service()), strings.ToLower(resource.Type()))
 
@@ -408,10 +412,10 @@ func (h *Handler) processResults(ctx context.Context, results []patrol.Result, t
 
 			if resource.IsCompliant() {
 				compliantResources++
-				h.createMetricsForResource(resource, thresholdTags, resourceName, accountID, resourceType)
+				h.createMetricsForResource(resource, thresholdTags, tagName, accountID, resourceType)
 			} else {
 				violatingResources++
-				h.handleNonCompliantResource(resource, resourceName, accountID, resourceType)
+				h.handleNonCompliantResource(resource, tagName, accountID, resourceType)
 
 				if nonCompliantCounts[resourceType] == nil {
 					nonCompliantCounts[resourceType] = make(map[string]int)
@@ -438,7 +442,7 @@ func (h *Handler) processResults(ctx context.Context, results []patrol.Result, t
 }
 
 // createMetricsForResource creates Prometheus metrics for compliant resources
-func (h *Handler) createMetricsForResource(resource interface{}, thresholdTags map[string]tagemonv1alpha1.ThresholdTagType, resourceName, accountID, resourceType string) {
+func (h *Handler) createMetricsForResource(resource interface{}, thresholdTags map[string]tagemonv1alpha1.ThresholdTagType, tagName, accountID, resourceType string) {
 	type CloudResource interface {
 		ID() string
 		Tags() map[string]string
@@ -471,13 +475,13 @@ func (h *Handler) createMetricsForResource(resource interface{}, thresholdTags m
 			}
 
 			if err == nil {
-				gauge.WithLabelValues(resourceName, accountID, resourceType).Set(value)
+				gauge.WithLabelValues(tagName, accountID, resourceType).Set(value)
 			}
 		}
 	}
 }
 
-func (h *Handler) handleNonCompliantResource(resource interface{}, resourceName, accountID, resourceType string) {
+func (h *Handler) handleNonCompliantResource(resource interface{}, tagName, accountID, resourceType string) {
 	resourceValue := reflect.ValueOf(resource)
 
 	idMethod := resourceValue.MethodByName("ID")
@@ -531,11 +535,17 @@ func (h *Handler) handleNonCompliantResource(resource interface{}, resourceName,
 	}
 
 	log.FromContext(context.Background()).Info("Non-compliant resource detected",
-		"resource", resourceName,
+		"resource", tagName,
 		"type", resourceType,
 		"arn", resourceARN,
 		"account", accountID,
 		"violations", violations)
+}
+
+func (h *Handler) resetAllThresholdMetrics() {
+	for _, gauge := range h.metricsGauges {
+		gauge.Reset()
+	}
 }
 
 func (h *Handler) updateNonCompliantMetrics(nonCompliantCounts map[string]map[string]int, allResourceTypes map[string]map[string]bool) {
