@@ -17,8 +17,8 @@ limitations under the License.
 package yacehandler
 
 import (
-	"github.com/next-insurance/tagemon-dev/internal/pkg/confighandler"
-	"github.com/next-insurance/tagemon-dev/internal/pkg/tagshandler"
+	"github.com/next-insurance/tagemon-dev/internal/confighandler"
+	"github.com/next-insurance/tagemon-dev/internal/tagshandler"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 

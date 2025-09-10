@@ -21,7 +21,7 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/next-insurance/tagemon-dev/internal/pkg/confighandler"
+	"github.com/next-insurance/tagemon-dev/internal/confighandler"
 )
 
 // SetupWithManager configures the tags handler runner with the manager

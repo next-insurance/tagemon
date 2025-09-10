@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
-	"github.com/next-insurance/tagemon-dev/internal/pkg/confighandler"
+	"github.com/next-insurance/tagemon-dev/internal/confighandler"
 )
 
 type Handler struct {

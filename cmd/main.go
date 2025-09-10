@@ -38,9 +38,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	tagemonv1alpha1 "github.com/next-insurance/tagemon-dev/api/v1alpha1"
-	"github.com/next-insurance/tagemon-dev/internal/pkg/confighandler"
-	"github.com/next-insurance/tagemon-dev/internal/pkg/tagshandler"
-	"github.com/next-insurance/tagemon-dev/internal/pkg/yacehandler"
+	"github.com/next-insurance/tagemon-dev/internal/confighandler"
+	"github.com/next-insurance/tagemon-dev/internal/tagshandler"
+	"github.com/next-insurance/tagemon-dev/internal/yacehandler"
 	// +kubebuilder:scaffold:imports
 )
 
