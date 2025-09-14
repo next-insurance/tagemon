@@ -1,0 +1,308 @@
+{{- if .Values.crd.enable }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  annotations:
+    {{- if .Values.crd.keep }}
+    "helm.sh/resource-policy": keep
+    {{- end }}
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: tagemons.tagemon.io
+spec:
+  group: tagemon.io
+  names:
+    kind: Tagemon
+    listKind: TagemonList
+    plural: tagemons
+    singular: tagemon
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: AWS service type
+      jsonPath: .spec.type
+      name: Type
+      type: string
+    - description: Monitored regions
+      jsonPath: .spec.regions
+      name: Regions
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Tagemon is the Schema for the tagemons API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: TagemonSpec defines the desired state of Tagemon.
+            properties:
+              addCloudwatchTimestamp:
+                description: AddCloudwatchTimestamp is the default setting to add
+                  CloudWatch timestamp, can be overridden in the metric configuration
+                type: boolean
+              awsRoles:
+                description: AWS roles to assume
+                items:
+                  description: AWSRole represents an AWS IAM role to assume
+                  properties:
+                    externalId:
+                      description: ExternalId is the external ID to use when assuming
+                        the role (optional)
+                      type: string
+                    roleArn:
+                      description: RoleArn is the ARN of the AWS IAM role to assume
+                      pattern: ^arn:aws:iam::\d{12}:role\/[A-Za-z0-9+=,.@_\-/]+$
+                      type: string
+                  required:
+                  - roleArn
+                  type: object
+                minItems: 1
+                type: array
+              length:
+                description: Length is the default length in seconds for metric data
+                  retrieval, can be overridden in the metric configuration
+                format: int32
+                minimum: 1
+                type: integer
+              metrics:
+                description: Metrics is the list of metrics to monitor
+                items:
+                  description: TagemonMetric defines a CloudWatch metric configuration
+                  properties:
+                    addCloudwatchTimestamp:
+                      description: AddCloudwatchTimestamp For Metric
+                      type: boolean
+                    length:
+                      description: Length For Metric
+                      format: int32
+                      minimum: 1
+                      type: integer
+                    name:
+                      description: Name is the CloudWatch metric name
+                      type: string
+                    nilToZero:
+                      description: NilToZero For Metric
+                      type: boolean
+                    period:
+                      description: Period For Metric
+                      format: int32
+                      minimum: 2
+                      type: integer
+                    statistics:
+                      description: Statistics For Metric
+                      items:
+                        description: Statistics represents a valid AWS metrics statistics
+                        enum:
+                        - Sum
+                        - Average
+                        - Maximum
+                        - Minimum
+                        - SampleCount
+                        type: string
+                      type: array
+                  required:
+                  - name
+                  type: object
+                type: array
+              namePrefix:
+                maxLength: 200
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                type: string
+              nilToZero:
+                default: true
+                description: NilToZero is the default setting to convert nil values
+                  to zero, can be overridden in the metric configuration
+                type: boolean
+              period:
+                description: Period is the default period in seconds for CloudWatch
+                  metrics, can be overridden in the metric configuration
+                format: int32
+                minimum: 1
+                type: integer
+              podResources:
+                description: PodResources defines resource requirements for the YACE
+                  pods
+                properties:
+                  limits:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: |-
+                      Limits describes the maximum amount of compute resources allowed.
+                      Keys are valid resource names (e.g. cpu, memory). Values follow Kubernetes quantity format.
+                    type: object
+                  requests:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: |-
+                      Requests describes the minimum amount of compute resources required.
+                      Keys are valid resource names (e.g. cpu, memory). Values follow Kubernetes quantity format.
+                    type: object
+                type: object
+              regions:
+                description: Regions is the list of AWS regions to monitor
+                items:
+                  description: AWSRegion represents a valid AWS region
+                  enum:
+                  - us-east-1
+                  - us-east-2
+                  - us-west-1
+                  - us-west-2
+                  - af-south-1
+                  - ap-east-1
+                  - ap-south-1
+                  - ap-south-2
+                  - ap-northeast-1
+                  - ap-northeast-2
+                  - ap-northeast-3
+                  - ap-southeast-1
+                  - ap-southeast-2
+                  - ap-southeast-3
+                  - ap-southeast-4
+                  - ca-central-1
+                  - eu-central-1
+                  - eu-central-2
+                  - eu-north-1
+                  - eu-south-1
+                  - eu-south-2
+                  - eu-west-1
+                  - eu-west-2
+                  - eu-west-3
+                  - me-central-1
+                  - me-south-1
+                  - sa-east-1
+                  type: string
+                minItems: 1
+                type: array
+              searchTags:
+                description: SearchTags are optional tags to filter resources
+                items:
+                  description: TagemonTag defines a tag key-value pair for resource
+                    filtering
+                  properties:
+                    key:
+                      description: Key is the tag key
+                      type: string
+                    value:
+                      description: Value is the tag value
+                      type: string
+                  required:
+                  - key
+                  - value
+                  type: object
+                type: array
+              statistics:
+                description: Statistics are the default statistics for all metrics,
+                  can be overridden in the metric configuration
+                items:
+                  description: Statistics represents a valid AWS metrics statistics
+                  enum:
+                  - Sum
+                  - Average
+                  - Maximum
+                  - Minimum
+                  - SampleCount
+                  type: string
+                type: array
+              thresholdTags:
+                description: ThresholdTags is the list of threshold tag configurations
+                items:
+                  description: ThresholdTag defines a threshold tag configuration
+                  properties:
+                    key:
+                      description: Key is the tag key to monitor
+                      type: string
+                    resourceType:
+                      description: ResourceType is the AWS resource type to apply
+                        this threshold tag to
+                      type: string
+                    type:
+                      description: Type is the type of the threshold tag value
+                      enum:
+                      - int
+                      - bool
+                      - percentage
+                      type: string
+                  required:
+                  - key
+                  - resourceType
+                  - type
+                  type: object
+                type: array
+              type:
+                description: Type is the AWS service type (e.g., AWS/RDS, AWS/Backup,
+                  AWS/S3)
+                pattern: ^AWS\/[A-Z0-9]+$
+                type: string
+            required:
+            - awsRoles
+            - length
+            - metrics
+            - period
+            - regions
+            - statistics
+            - type
+            type: object
+          status:
+            description: TagemonStatus defines the observed state of Tagemon.
+            properties:
+              configMapName:
+                description: ConfigMapName is the name of the ConfigMap created for
+                  this Tagemon
+                maxLength: 253
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                type: string
+              deploymentID:
+                type: string
+              deploymentName:
+                description: DeploymentName is the name of the Deployment created
+                  for this Tagemon
+                maxLength: 253
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                type: string
+              observedGeneration:
+                description: ObservedGeneration reflects the generation of the most
+                  recently observed Tagemon.
+                format: int64
+                type: integer
+              serviceAccountName:
+                description: ServiceAccountName is the name of the ServiceAccount
+                  created for this Tagemon
+                maxLength: 253
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+{{- end -}}

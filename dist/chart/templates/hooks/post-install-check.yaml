@@ -1,0 +1,24 @@
+{{- if .Values.verification.postInstallCheck }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "chart.name" . }}-post-install-check"
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+    app.kubernetes.io/component: post-install-hook
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": hook-succeeded,hook-failed
+spec:
+  restartPolicy: Never
+  containers:
+  - name: post-install-check
+    image: bitnami/kubectl:latest
+    command:
+      - /bin/sh
+      - -c
+      - |
+        {{- include "chart.verificationScript" (dict "hookType" "Post-install" "Release" .Release "Chart" .Chart "Values" .Values) | nindent 8 }}
+  serviceAccountName: {{ .Values.controller.serviceAccountName }}
+{{- end }}

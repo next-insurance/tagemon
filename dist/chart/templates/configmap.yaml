@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "chart.name" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+data:
+  controller-config.yaml: |
+    serviceAccountName: {{ .Values.controller.config.yaceServiceAccountName }}
+    watchNamespace: {{ .Release.Namespace | quote }}
+    tagsHandler:
+      viewArn: {{ .Values.controller.config.tagsHandler.viewArn | quote }}
+      region: {{ .Values.controller.config.tagsHandler.region | quote }}
+      interval: {{ .Values.controller.config.tagsHandler.interval | default "1m" | quote }}

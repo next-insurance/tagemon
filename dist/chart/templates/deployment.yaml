@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tagemon-dev-controller-manager
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+    control-plane: controller-manager
+spec:
+  replicas:  {{ .Values.controller.replicas }}
+  selector:
+    matchLabels:
+      {{- include "chart.selectorLabels" . | nindent 6 }}
+      control-plane: controller-manager
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        {{- include "chart.labels" . | nindent 8 }}
+        control-plane: controller-manager
+        {{- if and .Values.controller.pod .Values.controller.pod.labels }}
+        {{- range $key, $value := .Values.controller.pod.labels }}
+        {{ $key }}: {{ $value }}
+        {{- end }}
+        {{- end }}
+    spec:
+      containers:
+        - name: manager
+          args:
+            {{- range .Values.controller.args }}
+            - {{ . }}
+            {{- end }}
+          command:
+            - /manager
+          image: {{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag }}
+          {{- if .Values.controller.env }}
+          env:
+            {{- range $key, $value := .Values.controller.env }}
+            - name: {{ $key }}
+              value: {{ $value }}
+            {{- end }}
+          {{- end }}
+          livenessProbe:
+            {{- toYaml .Values.controller.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.controller.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.controller.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.controller.containerSecurityContext | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "chart.name" . }}-config
+      securityContext:
+        {{- toYaml .Values.controller.podSecurityContext | nindent 8 }}
+      serviceAccountName: {{ .Values.controller.serviceAccountName }}
+      terminationGracePeriodSeconds: {{ .Values.controller.terminationGracePeriodSeconds }}

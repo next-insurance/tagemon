@@ -1,0 +1,7 @@
+apiVersion: v2
+name: tagemon-dev
+description: A Helm chart to distribute the project tagemon-dev
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+icon: "https://example.com/icon.png"

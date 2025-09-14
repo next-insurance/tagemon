@@ -1,0 +1,85 @@
+{{- if .Values.yaceServiceMonitor.enabled -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "chart.name" . }}-yace-monitor
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+    app.kubernetes.io/component: servicemonitor
+    {{- with .Values.yaceServiceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.yaceServiceMonitor.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: headless-service
+  endpoints:
+  - port: metrics
+    interval: {{ .Values.yaceServiceMonitor.interval | default "60s" }}
+    scrapeTimeout: {{ .Values.yaceServiceMonitor.scrapeTimeout | default "30s" }}
+    path: {{ .Values.yaceServiceMonitor.path | default "/metrics" }}
+    scheme: {{ .Values.yaceServiceMonitor.scheme | default "http" }}
+    {{- if .Values.yaceServiceMonitor.relabelings }}
+    relabelings:
+    {{- range .Values.yaceServiceMonitor.relabelings }}
+    - sourceLabels: {{ .sourceLabels | toYaml | nindent 8 }}
+      {{- if .targetLabel }}
+      targetLabel: {{ .targetLabel }}
+      {{- end }}
+      {{- if .regex }}
+      regex: {{ .regex | quote }}
+      {{- end }}
+      {{- if .replacement }}
+      replacement: {{ .replacement | quote }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+{{- end }}
+---
+{{- if .Values.controller.serviceMonitor.enabled -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "chart.name" . }}-controller-monitor
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller-servicemonitor
+    {{- with .Values.controller.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.controller.serviceMonitor.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+  endpoints:
+  - port: http
+    interval: {{ .Values.controller.serviceMonitor.interval | default "60s" }}
+    scrapeTimeout: {{ .Values.controller.serviceMonitor.scrapeTimeout | default "30s" }}
+    path: {{ .Values.controller.serviceMonitor.path | default "/metrics" }}
+    scheme: {{ .Values.controller.serviceMonitor.scheme | default "http" }}
+    {{- if .Values.controller.serviceMonitor.relabelings }}
+    relabelings:
+    {{- range .Values.controller.serviceMonitor.relabelings }}
+    - sourceLabels: {{ .sourceLabels | toYaml | nindent 8 }}
+      {{- if .targetLabel }}
+      targetLabel: {{ .targetLabel }}
+      {{- end }}
+      {{- if .regex }}
+      regex: {{ .regex | quote }}
+      {{- end }}
+      {{- if .replacement }}
+      replacement: {{ .replacement | quote }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+{{- end }}

@@ -1,0 +1,65 @@
+✅ Tagemon Operator installed successfully!
+
+{{- if or (not .Values.controller.config.tagsHandler.viewArn) (not .Values.controller.config.tagsHandler.region) }}
+
+⚠️  CONFIGURATION REQUIRED:
+   Make sure to configure the required AWS Resource Explorer settings:
+   - controller.config.tagsHandler.viewArn (currently: {{ .Values.controller.config.tagsHandler.viewArn | default "NOT SET" }})
+   - controller.config.tagsHandler.region (currently: {{ .Values.controller.config.tagsHandler.region | default "NOT SET" }})
+{{- end }}
+
+🔍 Verify installation:
+   # Check deployment status
+   kubectl get deployment {{ include "chart.name" . }}-controller-manager -n {{ .Release.Namespace }}
+   
+   # View controller logs
+   kubectl logs -l control-plane=controller-manager -n {{ .Release.Namespace }}
+   
+   # Run comprehensive test (optional)
+   helm test {{ .Release.Name }} -n {{ .Release.Namespace }}
+   
+   # Check configuration
+   kubectl get configmap {{ include "chart.name" . }}-config -n {{ .Release.Namespace }}
+
+🚀 Create your first Tagemon resource:
+   kubectl apply -f - <<EOF
+   apiVersion: tagemon.io/v1alpha1
+   kind: Tagemon
+   metadata:
+     name: example-ec2-monitoring
+     namespace: {{ .Release.Namespace }}
+   spec:
+     type: AWS/EC2
+     regions: [us-east-1]
+     awsRoles:
+       - roleArn: arn:aws:iam::YOUR-ACCOUNT:role/TagemonRole
+     metrics:
+       - name: CPUUtilization
+     statistics: [Average]
+     period: 300
+     length: 600
+   EOF
+
+📊 Monitor your resources:
+   kubectl get tagemons -n {{ .Release.Namespace }}
+
+{{- if .Values.headlessService.enabled }}
+   kubectl get service {{ include "chart.name" . }}-yace-headless -n {{ .Release.Namespace }}
+{{- end }}
+{{- if .Values.yaceServiceMonitor.enabled }}
+   kubectl get servicemonitor {{ include "chart.name" . }}-yace-monitor -n {{ .Release.Namespace }}
+{{- end }}
+{{- if .Values.controller.serviceMonitor.enabled }}
+   kubectl get servicemonitor {{ include "chart.name" . }}-controller-monitor -n {{ .Release.Namespace }}
+{{- end }}
+
+{{- if and (not .Values.yaceServiceMonitor.enabled) (not .Values.headlessService.enabled) (not .Values.controller.serviceMonitor.enabled) }}
+
+🎯 Monitoring features are disabled. To enable:
+   helm upgrade {{ .Release.Name }} . \
+     --set yaceServiceMonitor.enabled=true \
+     --set controller.serviceMonitor.enabled=true \
+     --set headlessService.enabled=true
+{{- end }}
+
+📖 For full documentation and configuration options, see the README.md

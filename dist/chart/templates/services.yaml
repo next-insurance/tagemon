@@ -1,0 +1,47 @@
+{{- if .Values.metrics.enable }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tagemon-dev-controller-manager-metrics-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+    control-plane: controller-manager
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    control-plane: controller-manager
+{{- end }}
+{{- if .Values.headlessService.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "chart.name" . }}-yace-headless
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+    app.kubernetes.io/component: headless-service
+    {{- with .Values.headlessService.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.headlessService.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: tagemon-yace
+  ports:
+  - name: metrics
+    port: {{ .Values.headlessService.port | default 5000 }}
+    targetPort: {{ .Values.headlessService.targetPort | default 5000 }}
+    protocol: TCP
+{{- end }}

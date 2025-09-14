@@ -1,0 +1,108 @@
+controller:
+  replicas: 1
+  
+  image:
+    repository: amitshlo/test-tag
+    tag: v1.0.2
+  
+  args:
+    - "--health-probe-bind-address=:8081"
+    - "--metrics-bind-address=:8080"
+    - "--metrics-secure=false"
+  
+  resources:
+    limits:
+      cpu: 500m
+      memory: 128Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi
+  
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: 8081
+    initialDelaySeconds: 15
+    periodSeconds: 20
+  
+  readinessProbe:
+    httpGet:
+      path: /readyz
+      port: 8081
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - "ALL"
+
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+
+  terminationGracePeriodSeconds: 10
+  serviceAccountName: tagemon-dev-controller-manager
+
+  config:
+    yaceServiceAccountName: tagemon-dev-yace
+    
+    tagsHandler:
+      viewArn: ""  # REQUIRED: AWS Resource Explorer view ARN
+      region: "us-west-2"  # REQUIRED: AWS region
+      interval: "1m"
+
+  serviceMonitor:
+    enabled: true
+    interval: 60s
+    scrapeTimeout: 30s
+    path: /metrics
+    scheme: http
+    labels: {}
+    annotations: {}
+    relabelings:
+      - sourceLabels: [__meta_kubernetes_service_name]
+        targetLabel: service_name
+      - sourceLabels: [__meta_kubernetes_namespace]
+        targetLabel: kubernetes_namespace
+
+rbac:
+  enable: true
+
+crd:
+  enable: true
+  keep: false  # Keep CRDs when uninstalling
+
+verification:
+  postInstallCheck: true  # Enable post-install/upgrade verification hooks
+  enableTests: true  # Enable helm tests
+
+metrics:
+  enable: true
+
+headlessService:
+  enabled: true
+  port: 5000
+  targetPort: 5000
+  labels: {}
+  annotations: {}
+
+yaceServiceMonitor:
+  enabled: true
+  interval: 60s
+  scrapeTimeout: 30s
+  path: /metrics
+  scheme: http
+  labels: {}
+  annotations: {}
+  relabelings:
+    - sourceLabels: [__meta_kubernetes_pod_name]
+      targetLabel: yace_pod
+    - sourceLabels: [__meta_kubernetes_namespace]
+      targetLabel: kubernetes_namespace
+    - sourceLabels: [__meta_kubernetes_pod_name]
+      regex: '(.+)-yace-([a-f0-9]+)'
+      replacement: '${1}'
+      targetLabel: aws_service_type

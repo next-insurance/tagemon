@@ -1,0 +1,127 @@
+{{- if .Values.rbac.enable }}
+---
+# ClusterRole is still needed for CRD access (tagemons CRD is cluster-scoped)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  name: tagemon-controller-crd-role
+rules:
+# CRD access - these are cluster-scoped resources
+- apiGroups:
+  - tagemon.io
+  resources:
+  - tagemons
+  - tagemons/status
+  - tagemons/finalizers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  name: tagemon-controller-crd-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tagemon-controller-crd-role
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.controller.serviceAccountName }}
+  namespace: {{ .Release.Namespace }}
+---
+# Role for namespace-scoped resources (ConfigMaps, Deployments)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  name: tagemon-controller-namespace-role
+  namespace: {{ .Release.Namespace }}
+rules:
+# Namespace-scoped resources that the controller manages
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  name: tagemon-controller-namespace-rolebinding
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tagemon-controller-namespace-role
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.controller.serviceAccountName }}
+  namespace: {{ .Release.Namespace }}
+
+{{- if or .Values.verification.postInstallCheck .Values.verification.enableTests }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  name: tagemon-verification-role
+  namespace: {{ .Release.Namespace }}
+rules:
+# Permissions needed for verification hooks and tests
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods", "pods/exec"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  name: tagemon-verification-rolebinding
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tagemon-verification-role
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.controller.serviceAccountName }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- end -}}
