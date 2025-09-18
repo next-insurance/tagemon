@@ -73,12 +73,6 @@ spec:
                   type: object
                 minItems: 1
                 type: array
-              length:
-                description: Length is the default length in seconds for metric data
-                  retrieval, can be overridden in the metric configuration
-                format: int32
-                minimum: 1
-                type: integer
               metrics:
                 description: Metrics is the list of metrics to monitor
                 items:
@@ -87,11 +81,6 @@ spec:
                     addCloudwatchTimestamp:
                       description: AddCloudwatchTimestamp For Metric
                       type: boolean
-                    length:
-                      description: Length For Metric
-                      format: int32
-                      minimum: 1
-                      type: integer
                     name:
                       description: Name is the CloudWatch metric name
                       type: string
@@ -196,6 +185,12 @@ spec:
                   type: string
                 minItems: 1
                 type: array
+              scrapingInterval:
+                description: ScrapingInterval is the global scraping interval in seconds
+                  for all metrics
+                format: int32
+                minimum: 60
+                type: integer
               searchTags:
                 description: SearchTags are optional tags to filter resources
                 items:
@@ -258,7 +253,6 @@ spec:
                 type: string
             required:
             - awsRoles
-            - length
             - metrics
             - period
             - regions

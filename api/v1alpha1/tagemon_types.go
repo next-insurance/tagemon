@@ -81,10 +81,10 @@ type TagemonSpec struct {
 	// +kubebuilder:validation:Minimum=1
 	Period *int32 `json:"period,omitempty"`
 
-	// Length is the default length in seconds for metric data retrieval, can be overridden in the metric configuration
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Minimum=1
-	Length *int32 `json:"length,omitempty"`
+	// ScrapingInterval is the global scraping interval in seconds for all metrics
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Minimum=60
+	ScrapingInterval *int32 `json:"scrapingInterval,omitempty"`
 
 	// NilToZero is the default setting to convert nil values to zero, can be overridden in the metric configuration
 	// +kubebuilder:default=true
@@ -130,11 +130,6 @@ type TagemonMetric struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Minimum=2
 	Period *int32 `json:"period,omitempty"`
-
-	// Length For Metric
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Minimum=1
-	Length *int32 `json:"length,omitempty"`
 
 	// NilToZero For Metric
 	// +kubebuilder:validation:Optional

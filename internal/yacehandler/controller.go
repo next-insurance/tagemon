@@ -286,6 +286,7 @@ func (r *Reconciler) createDeployment(ctx context.Context, tagemon *v1alpha1.Tag
 							},
 							Args: []string{
 								"--config.file=/tmp/config.yml",
+								fmt.Sprintf("--scraping-interval=%d", getScrapingInterval(tagemon)),
 							},
 						},
 					},
@@ -558,6 +559,14 @@ func setMetricOrGlobalValue(m map[string]interface{}, key string, metric *v1alph
 	}
 }
 
+// getScrapingInterval returns the scraping interval from the spec or a default of 300 seconds
+func getScrapingInterval(tagemon *v1alpha1.Tagemon) int32 {
+	if tagemon.Spec.ScrapingInterval != nil {
+		return *tagemon.Spec.ScrapingInterval
+	}
+	return 300 // Default 300 seconds
+}
+
 func (r *Reconciler) generateYACEConfig(tagemon *v1alpha1.Tagemon) (string, error) {
 	config := map[string]interface{}{
 		"apiVersion": "v1alpha1",
@@ -597,12 +606,12 @@ func (r *Reconciler) generateYACEConfig(tagemon *v1alpha1.Tagemon) (string, erro
 						metrics := make([]map[string]interface{}, len(tagemon.Spec.Metrics))
 						for i, metric := range tagemon.Spec.Metrics {
 							m := map[string]interface{}{
-								"name": metric.Name,
+								"name":   metric.Name,
+								"length": getScrapingInterval(tagemon), // Set length equal to scrapingInterval with default
 							}
 
 							setMetricOrGlobalValue(m, "statistics", &metric, &tagemon.Spec)
 							setMetricOrGlobalValue(m, "period", &metric, &tagemon.Spec)
-							setMetricOrGlobalValue(m, "length", &metric, &tagemon.Spec)
 							setMetricOrGlobalValue(m, "nilToZero", &metric, &tagemon.Spec)
 							setMetricOrGlobalValue(m, "addCloudwatchTimestamp", &metric, &tagemon.Spec)
 

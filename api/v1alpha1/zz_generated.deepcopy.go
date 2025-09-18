@@ -141,11 +141,6 @@ func (in *TagemonMetric) DeepCopyInto(out *TagemonMetric) {
 		*out = new(int32)
 		**out = **in
 	}
-	if in.Length != nil {
-		in, out := &in.Length, &out.Length
-		*out = new(int32)
-		**out = **in
-	}
 	if in.NilToZero != nil {
 		in, out := &in.NilToZero, &out.NilToZero
 		*out = new(bool)
@@ -191,8 +186,8 @@ func (in *TagemonSpec) DeepCopyInto(out *TagemonSpec) {
 		*out = new(int32)
 		**out = **in
 	}
-	if in.Length != nil {
-		in, out := &in.Length, &out.Length
+	if in.ScrapingInterval != nil {
+		in, out := &in.ScrapingInterval, &out.ScrapingInterval
 		*out = new(int32)
 		**out = **in
 	}

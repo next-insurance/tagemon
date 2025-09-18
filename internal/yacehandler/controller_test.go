@@ -50,10 +50,9 @@ func TestReconciler_Initialization(t *testing.T) {
 		config := &confighandler.Config{ServiceAccountName: "test-sa"}
 
 		reconciler := &Reconciler{
-			Client:      fakeClient,
-			Scheme:      scheme,
-			Config:      config,
-			TagsHandler: nil, // No tagshandler needed for this test
+			Client: fakeClient,
+			Scheme: scheme,
+			Config: config,
 		}
 
 		if reconciler.Client == nil {
@@ -144,9 +143,9 @@ func TestGenerateYACEConfig(t *testing.T) {
 					{Key: "Environment", Value: "production"},
 					{Key: "Team", Value: "platform"},
 				},
-				Statistics: []v1alpha1.Statistics{"Average", "Sum"},
-				Period:     int32Ptr(300),
-				Length:     int32Ptr(3600),
+				Statistics:       []v1alpha1.Statistics{"Average", "Sum"},
+				Period:           int32Ptr(300),
+				ScrapingInterval: int32Ptr(3600),
 				Metrics: []v1alpha1.TagemonMetric{
 					{
 						Name:       "CPUUtilization",
@@ -538,9 +537,9 @@ func TestHandleCreate(t *testing.T) {
 				Roles: []v1alpha1.AWSRole{
 					{RoleArn: "arn:aws:iam::123456789012:role/test-role"},
 				},
-				Statistics: []v1alpha1.Statistics{"Sum"},
-				Period:     int32Ptr(300),
-				Length:     int32Ptr(3600),
+				Statistics:       []v1alpha1.Statistics{"Sum"},
+				Period:           int32Ptr(300),
+				ScrapingInterval: int32Ptr(3600),
 				Metrics: []v1alpha1.TagemonMetric{
 					{Name: "BucketSizeBytes"},
 				},
@@ -624,9 +623,9 @@ func TestHandleCreate(t *testing.T) {
 				Roles: []v1alpha1.AWSRole{
 					{RoleArn: "arn:aws:iam::123456789012:role/test-role"},
 				},
-				Statistics: []v1alpha1.Statistics{"Sum"},
-				Period:     int32Ptr(300),
-				Length:     int32Ptr(3600),
+				Statistics:       []v1alpha1.Statistics{"Sum"},
+				Period:           int32Ptr(300),
+				ScrapingInterval: int32Ptr(3600),
 				Metrics: []v1alpha1.TagemonMetric{
 					{Name: "BucketSizeBytes"},
 				},
@@ -687,9 +686,9 @@ func TestHandleCreate(t *testing.T) {
 				Roles: []v1alpha1.AWSRole{
 					{RoleArn: "arn:aws:iam::123456789012:role/test-role"},
 				},
-				Statistics: []v1alpha1.Statistics{"Sum"},
-				Period:     int32Ptr(300),
-				Length:     int32Ptr(3600),
+				Statistics:       []v1alpha1.Statistics{"Sum"},
+				Period:           int32Ptr(300),
+				ScrapingInterval: int32Ptr(3600),
 				Metrics: []v1alpha1.TagemonMetric{
 					{Name: "BucketSizeBytes"},
 				},
@@ -752,9 +751,9 @@ func TestHandleModify(t *testing.T) {
 				Roles: []v1alpha1.AWSRole{
 					{RoleArn: "arn:aws:iam::123456789012:role/test-role"},
 				},
-				Statistics: []v1alpha1.Statistics{"Average"},
-				Period:     int32Ptr(300),
-				Length:     int32Ptr(3600),
+				Statistics:       []v1alpha1.Statistics{"Average"},
+				Period:           int32Ptr(300),
+				ScrapingInterval: int32Ptr(3600),
 				Metrics: []v1alpha1.TagemonMetric{
 					{Name: "CPUUtilization"},
 				},
@@ -870,9 +869,9 @@ func TestHandleModify(t *testing.T) {
 				Roles: []v1alpha1.AWSRole{
 					{RoleArn: "arn:aws:iam::123456789012:role/test-role"},
 				},
-				Statistics: []v1alpha1.Statistics{"Average"},
-				Period:     int32Ptr(300),
-				Length:     int32Ptr(3600),
+				Statistics:       []v1alpha1.Statistics{"Average"},
+				Period:           int32Ptr(300),
+				ScrapingInterval: int32Ptr(3600),
 				Metrics: []v1alpha1.TagemonMetric{
 					{Name: "CPUUtilization"},
 				},
@@ -955,9 +954,9 @@ func TestHandleModify(t *testing.T) {
 				Roles: []v1alpha1.AWSRole{
 					{RoleArn: "arn:aws:iam::123456789012:role/test-role"},
 				},
-				Statistics: []v1alpha1.Statistics{"Sum"},
-				Period:     int32Ptr(300),
-				Length:     int32Ptr(3600),
+				Statistics:       []v1alpha1.Statistics{"Sum"},
+				Period:           int32Ptr(300),
+				ScrapingInterval: int32Ptr(3600),
 				Metrics: []v1alpha1.TagemonMetric{
 					{Name: "BucketSizeBytes"},
 				},
@@ -1213,9 +1212,9 @@ func TestCreateConfigMap(t *testing.T) {
 				Roles: []v1alpha1.AWSRole{
 					{RoleArn: "arn:aws:iam::123456789012:role/test-role"},
 				},
-				Statistics: []v1alpha1.Statistics{"Sum"},
-				Period:     int32Ptr(300),
-				Length:     int32Ptr(3600),
+				Statistics:       []v1alpha1.Statistics{"Sum"},
+				Period:           int32Ptr(300),
+				ScrapingInterval: int32Ptr(3600),
 				Metrics: []v1alpha1.TagemonMetric{
 					{Name: "BucketSizeBytes"},
 				},
