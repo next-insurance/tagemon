@@ -573,7 +573,13 @@ func (r *Reconciler) generateYACEConfig(tagemon *v1alpha1.Tagemon) (string, erro
 		"sts-region": "us-east-1", // Default STS region
 		"discovery": map[string]interface{}{
 			"exportedTagsOnMetrics": map[string]interface{}{
-				tagemon.Spec.Type: []string{"Name"},
+				tagemon.Spec.Type: func() []string {
+					exportedTags := []string{"Name"}
+					if len(tagemon.Spec.ExportedTagsOnMetrics) > 0 {
+						exportedTags = append(exportedTags, tagemon.Spec.ExportedTagsOnMetrics...)
+					}
+					return exportedTags
+				}(),
 			},
 			"jobs": []map[string]interface{}{
 				{

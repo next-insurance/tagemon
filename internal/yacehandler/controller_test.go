@@ -210,6 +210,82 @@ func TestGenerateYACEConfig(t *testing.T) {
 			t.Error("expected config to contain metric name")
 		}
 	})
+
+	t.Run("should handle exportedTagsOnMetrics with additional tags", func(t *testing.T) {
+		tagemon := &v1alpha1.Tagemon{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "tags-tagemon",
+				Namespace: "default",
+			},
+			Spec: v1alpha1.TagemonSpec{
+				Type:    "AWS/EC2",
+				Regions: []v1alpha1.AWSRegion{"us-west-2"},
+				Roles: []v1alpha1.AWSRole{
+					{RoleArn: "arn:aws:iam::123456789012:role/ec2-role"},
+				},
+				Metrics: []v1alpha1.TagemonMetric{
+					{Name: "CPUUtilization"},
+				},
+				ExportedTagsOnMetrics: []string{"Environment", "Team", "Project"},
+			},
+		}
+
+		config, err := reconciler.generateYACEConfig(tagemon)
+		if err != nil {
+			t.Fatalf("generateYACEConfig failed: %v", err)
+		}
+
+		// Verify that the config contains the default "Name" tag plus additional tags
+		expectedTags := []string{"Name", "Environment", "Team", "Project"}
+		for _, tag := range expectedTags {
+			if !strings.Contains(config, "- "+tag) {
+				t.Errorf("expected config to contain exported tag '%s', got:\n%s", tag, config)
+			}
+		}
+
+		// Verify the structure contains AWS/EC2 as the key for exportedTagsOnMetrics
+		if !strings.Contains(config, "AWS/EC2:") {
+			t.Error("expected config to contain 'AWS/EC2:' under exportedTagsOnMetrics")
+		}
+	})
+
+	t.Run("should handle exportedTagsOnMetrics with no additional tags (only Name)", func(t *testing.T) {
+		tagemon := &v1alpha1.Tagemon{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "name-only-tagemon",
+				Namespace: "default",
+			},
+			Spec: v1alpha1.TagemonSpec{
+				Type:    "AWS/S3",
+				Regions: []v1alpha1.AWSRegion{"us-east-1"},
+				Roles: []v1alpha1.AWSRole{
+					{RoleArn: "arn:aws:iam::123456789012:role/s3-role"},
+				},
+				Metrics: []v1alpha1.TagemonMetric{
+					{Name: "BucketSizeBytes"},
+				},
+				// ExportedTagsOnMetrics is nil/empty, should only have "Name"
+			},
+		}
+
+		config, err := reconciler.generateYACEConfig(tagemon)
+		if err != nil {
+			t.Fatalf("generateYACEConfig failed: %v", err)
+		}
+
+		// Should contain the default "Name" tag
+		if !strings.Contains(config, "- Name") {
+			t.Error("expected config to contain default 'Name' tag")
+		}
+
+		// Should not contain additional tags when none specified
+		unwantedTags := []string{"Environment", "Team", "Project"}
+		for _, tag := range unwantedTags {
+			if strings.Contains(config, "- "+tag) {
+				t.Errorf("expected config to NOT contain tag '%s' when not specified, got:\n%s", tag, config)
+			}
+		}
+	})
 }
 
 func TestSetMetricOrGlobalValue(t *testing.T) {

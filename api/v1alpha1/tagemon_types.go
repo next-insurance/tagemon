@@ -102,6 +102,9 @@ type TagemonSpec struct {
 	// +kubebuilder:validation:Optional
 	SearchTags []TagemonTag `json:"searchTags,omitempty"`
 
+	// +kubebuilder:validation:Optional
+	ExportedTagsOnMetrics []string `json:"exportedTagsOnMetrics,omitempty"`
+
 	// PodResources defines resource requirements for the YACE pods
 	// +kubebuilder:validation:Optional
 	PodResources *PodResources `json:"podResources,omitempty"`
