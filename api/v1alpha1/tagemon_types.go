@@ -102,10 +102,6 @@ type TagemonSpec struct {
 	// +kubebuilder:validation:Optional
 	SearchTags []TagemonTag `json:"searchTags,omitempty"`
 
-	// ThresholdTags is the list of threshold tag configurations
-	// +kubebuilder:validation:Optional
-	ThresholdTags []ThresholdTag `json:"thresholdTags,omitempty"`
-
 	// PodResources defines resource requirements for the YACE pods
 	// +kubebuilder:validation:Optional
 	PodResources *PodResources `json:"podResources,omitempty"`
@@ -138,6 +134,10 @@ type TagemonMetric struct {
 	// AddCloudwatchTimestamp For Metric
 	// +kubebuilder:validation:Optional
 	AddCloudwatchTimestamp *bool `json:"addCloudwatchTimestamp,omitempty"`
+
+	// ThresholdTags is the list of threshold tag configurations for this metric
+	// +kubebuilder:validation:Optional
+	ThresholdTags []ThresholdTag `json:"thresholdTags,omitempty"`
 }
 
 // TagemonTag defines a tag key-value pair for resource filtering
@@ -174,6 +174,11 @@ type ThresholdTag struct {
 	// ResourceType is the AWS resource type to apply this threshold tag to
 	// +kubebuilder:validation:Required
 	ResourceType string `json:"resourceType"`
+
+	// Required indicates whether this threshold tag is mandatory for compliance
+	// +kubebuilder:default=true
+	// +kubebuilder:validation:Optional
+	Required *bool `json:"required,omitempty"`
 }
 
 // TagemonStatus defines the observed state of Tagemon.

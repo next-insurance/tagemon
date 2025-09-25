@@ -43,16 +43,21 @@ func TestBuildTagPolicy(t *testing.T) {
 				{
 					Spec: tagemonv1alpha1.TagemonSpec{
 						Type: "AWS/S3",
-						ThresholdTags: []tagemonv1alpha1.ThresholdTag{
+						Metrics: []tagemonv1alpha1.TagemonMetric{
 							{
-								Type:         tagemonv1alpha1.ThresholdTagTypeInt,
-								Key:          "retention-days",
-								ResourceType: "bucket",
-							},
-							{
-								Type:         tagemonv1alpha1.ThresholdTagTypeBool,
-								Key:          "public",
-								ResourceType: "bucket",
+								Name: "BucketSizeBytes",
+								ThresholdTags: []tagemonv1alpha1.ThresholdTag{
+									{
+										Type:         tagemonv1alpha1.ThresholdTagTypeInt,
+										Key:          "retention-days",
+										ResourceType: "bucket",
+									},
+									{
+										Type:         tagemonv1alpha1.ThresholdTagTypeBool,
+										Key:          "public",
+										ResourceType: "bucket",
+									},
+								},
 							},
 						},
 					},
@@ -65,11 +70,16 @@ func TestBuildTagPolicy(t *testing.T) {
 				{
 					Spec: tagemonv1alpha1.TagemonSpec{
 						Type: "AWS/S3",
-						ThresholdTags: []tagemonv1alpha1.ThresholdTag{
+						Metrics: []tagemonv1alpha1.TagemonMetric{
 							{
-								Type:         tagemonv1alpha1.ThresholdTagTypePercentage,
-								Key:          "utilization",
-								ResourceType: "bucket",
+								Name: "BucketSizeBytes",
+								ThresholdTags: []tagemonv1alpha1.ThresholdTag{
+									{
+										Type:         tagemonv1alpha1.ThresholdTagTypePercentage,
+										Key:          "utilization",
+										ResourceType: "bucket",
+									},
+								},
 							},
 						},
 					},
@@ -77,11 +87,16 @@ func TestBuildTagPolicy(t *testing.T) {
 				{
 					Spec: tagemonv1alpha1.TagemonSpec{
 						Type: "AWS/EC2",
-						ThresholdTags: []tagemonv1alpha1.ThresholdTag{
+						Metrics: []tagemonv1alpha1.TagemonMetric{
 							{
-								Type:         tagemonv1alpha1.ThresholdTagTypeInt,
-								Key:          "ttl",
-								ResourceType: "instance",
+								Name: "CPUUtilization",
+								ThresholdTags: []tagemonv1alpha1.ThresholdTag{
+									{
+										Type:         tagemonv1alpha1.ThresholdTagTypeInt,
+										Key:          "ttl",
+										ResourceType: "instance",
+									},
+								},
 							},
 						},
 					},
@@ -98,16 +113,21 @@ func TestBuildTagPolicy(t *testing.T) {
 				{
 					Spec: tagemonv1alpha1.TagemonSpec{
 						Type: "AWS/EC2",
-						ThresholdTags: []tagemonv1alpha1.ThresholdTag{
+						Metrics: []tagemonv1alpha1.TagemonMetric{
 							{
-								Type:         tagemonv1alpha1.ThresholdTagTypeInt,
-								Key:          "cpu-threshold",
-								ResourceType: "nonexistent-resource-type",
-							},
-							{
-								Type:         tagemonv1alpha1.ThresholdTagTypeInt,
-								Key:          "storage-threshold",
-								ResourceType: "instance",
+								Name: "CPUUtilization",
+								ThresholdTags: []tagemonv1alpha1.ThresholdTag{
+									{
+										Type:         tagemonv1alpha1.ThresholdTagTypeInt,
+										Key:          "cpu-threshold",
+										ResourceType: "nonexistent-resource-type",
+									},
+									{
+										Type:         tagemonv1alpha1.ThresholdTagTypeInt,
+										Key:          "storage-threshold",
+										ResourceType: "instance",
+									},
+								},
 							},
 						},
 					},
@@ -123,7 +143,16 @@ func TestBuildTagPolicy(t *testing.T) {
 			assert.NotNil(t, thresholdMap)
 
 			// Verify policy structure for non-empty cases
-			if len(tt.tagemons) > 0 && len(tt.tagemons[0].Spec.ThresholdTags) > 0 {
+			hasThresholdTags := false
+			if len(tt.tagemons) > 0 {
+				for _, metric := range tt.tagemons[0].Spec.Metrics {
+					if len(metric.ThresholdTags) > 0 {
+						hasThresholdTags = true
+						break
+					}
+				}
+			}
+			if hasThresholdTags {
 				assert.NotEmpty(t, policy.Blueprints)
 				assert.NotEmpty(t, policy.Resources)
 

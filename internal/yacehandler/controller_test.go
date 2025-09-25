@@ -111,7 +111,7 @@ func TestGenerateYACEConfig(t *testing.T) {
 			"roles:",
 			"- roleArn: arn:aws:iam::123456789012:role/test-role",
 			"metrics:",
-			"- name: BucketSizeBytes",
+			"name: BucketSizeBytes",
 		}
 
 		for _, expected := range expectedStrings {

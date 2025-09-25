@@ -104,6 +104,37 @@ spec:
                         - SampleCount
                         type: string
                       type: array
+                    thresholdTags:
+                      description: ThresholdTags is the list of threshold tag configurations
+                        for this metric
+                      items:
+                        description: ThresholdTag defines a threshold tag configuration
+                        properties:
+                          key:
+                            description: Key is the tag key to monitor
+                            type: string
+                          required:
+                            default: true
+                            description: Required indicates whether this threshold
+                              tag is mandatory for compliance
+                            type: boolean
+                          resourceType:
+                            description: ResourceType is the AWS resource type to
+                              apply this threshold tag to
+                            type: string
+                          type:
+                            description: Type is the type of the threshold tag value
+                            enum:
+                            - int
+                            - bool
+                            - percentage
+                            type: string
+                        required:
+                        - key
+                        - resourceType
+                        - type
+                        type: object
+                      type: array
                   required:
                   - name
                   type: object
@@ -220,31 +251,6 @@ spec:
                   - Minimum
                   - SampleCount
                   type: string
-                type: array
-              thresholdTags:
-                description: ThresholdTags is the list of threshold tag configurations
-                items:
-                  description: ThresholdTag defines a threshold tag configuration
-                  properties:
-                    key:
-                      description: Key is the tag key to monitor
-                      type: string
-                    resourceType:
-                      description: ResourceType is the AWS resource type to apply
-                        this threshold tag to
-                      type: string
-                    type:
-                      description: Type is the type of the threshold tag value
-                      enum:
-                      - int
-                      - bool
-                      - percentage
-                      type: string
-                  required:
-                  - key
-                  - resourceType
-                  - type
-                  type: object
                 type: array
               type:
                 description: Type is the AWS service type (e.g., AWS/RDS, AWS/Backup,

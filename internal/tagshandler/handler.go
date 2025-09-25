@@ -124,10 +124,6 @@ func (h *Handler) buildTagPolicy(tagemons []tagemonv1alpha1.Tagemon) (*policyTyp
 	thresholdTagsMap := make(map[string]map[string]tagemonv1alpha1.ThresholdTagType)
 
 	for _, tagemon := range tagemons {
-		if len(tagemon.Spec.ThresholdTags) == 0 {
-			continue
-		}
-
 		// Parse AWS service type (e.g., "AWS/S3" -> "s3")
 		serviceType := strings.ToLower(strings.TrimPrefix(tagemon.Spec.Type, "AWS/"))
 
@@ -136,9 +132,19 @@ func (h *Handler) buildTagPolicy(tagemons []tagemonv1alpha1.Tagemon) (*policyTyp
 			thresholdTagsMap[serviceType] = make(map[string]tagemonv1alpha1.ThresholdTagType)
 		}
 
+		// Collect all threshold tags from all metrics
+		var allThresholdTags []tagemonv1alpha1.ThresholdTag
+		for _, metric := range tagemon.Spec.Metrics {
+			allThresholdTags = append(allThresholdTags, metric.ThresholdTags...)
+		}
+
+		if len(allThresholdTags) == 0 {
+			continue
+		}
+
 		// Group threshold tags by resource type
 		resourceTypeGroups := make(map[string][]tagemonv1alpha1.ThresholdTag)
-		for _, thresholdTag := range tagemon.Spec.ThresholdTags {
+		for _, thresholdTag := range allThresholdTags {
 			resourceType := thresholdTag.ResourceType
 			resourceTypeGroups[resourceType] = append(resourceTypeGroups[resourceType], thresholdTag)
 			thresholdTagsMap[serviceType][thresholdTag.Key] = thresholdTag.Type
@@ -152,7 +158,15 @@ func (h *Handler) buildTagPolicy(tagemons []tagemonv1alpha1.Tagemon) (*policyTyp
 			mandatoryKeys = append(mandatoryKeys, "Name")
 
 			for _, thresholdTag := range thresholdTags {
-				mandatoryKeys = append(mandatoryKeys, thresholdTag.Key)
+				// Add to mandatory keys only if required (default true)
+				isRequired := true
+				if thresholdTag.Required != nil {
+					isRequired = *thresholdTag.Required
+				}
+
+				if isRequired {
+					mandatoryKeys = append(mandatoryKeys, thresholdTag.Key)
+				}
 
 				// Create validation based on type
 				validation := &policyTypes.Validation{}
