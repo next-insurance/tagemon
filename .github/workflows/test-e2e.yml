@@ -1,8 +1,8 @@
 name: E2E Tests
 
 on:
-  push:
   pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
   test-e2e:
