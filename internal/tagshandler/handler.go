@@ -496,9 +496,10 @@ func (h *Handler) processResults(ctx context.Context, results []patrol.Result, t
 		// Process each resource in the result
 		for _, resource := range patrolResult.Resources {
 			if !h.isResourceRelevant(resource, allowedAccountIDs, searchTags) {
-				logger.V(1).Info("Skipping irrelevant resource",
-					"resource", resource.ID(),
-					"reason", "does not match monitored accounts or searchTags criteria")
+				// TODO: Uncomment this when we have a way to debug irrelevant resources
+				// logger.V(1).Info("Skipping irrelevant resource",
+				// 	"resource", resource.ID(),
+				// 	"reason", "does not match monitored accounts or searchTags criteria")
 				continue
 			}
 
