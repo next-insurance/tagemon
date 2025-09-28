@@ -224,7 +224,7 @@ func TestHandleNonCompliantResource(t *testing.T) {
 
 	// Mock non-compliant resource
 	resource := &mockResource{
-		id:          "arn:aws:s3:::test-bucket:123456789012",
+		id:          "arn:aws:s3:us-west-2:123456789012:bucket/test-bucket",
 		isCompliant: false,
 		complianceErrors: []*mockComplianceError{
 			{Message: "Missing required tag: Environment"},
@@ -282,7 +282,7 @@ func TestHandleNonCompliantResourceWithNoViolationDetails(t *testing.T) {
 
 	// Mock non-compliant resource with no compliance error details
 	resource := &mockResource{
-		id:               "arn:aws:s3:::empty-bucket:123456789012",
+		id:               "arn:aws:s3:us-west-2:123456789012:bucket/empty-bucket",
 		isCompliant:      false,
 		complianceErrors: []*mockComplianceError{}, // Empty violations
 		tags:             map[string]string{"Name": "empty-bucket"},
@@ -414,4 +414,322 @@ func TestUpdateNonCompliantMetricsWithZeros(t *testing.T) {
 	// Verify gauge exists - this demonstrates that EC2 will be set to 0
 	// even though it had no violations (because it was in allResourceTypes)
 	assert.NotNil(t, handler.nonCompliantGauges[metricName])
+}
+
+func TestExtractAllowedAccountIDs(t *testing.T) {
+	handler := &Handler{}
+
+	tests := []struct {
+		name     string
+		tagemons []tagemonv1alpha1.Tagemon
+		expected map[string]bool
+	}{
+		{
+			name: "single tagemon with multiple roles",
+			tagemons: []tagemonv1alpha1.Tagemon{
+				{
+					Spec: tagemonv1alpha1.TagemonSpec{
+						Roles: []tagemonv1alpha1.AWSRole{
+							{RoleArn: "arn:aws:iam::123456789012:role/test-role-1"},
+							{RoleArn: "arn:aws:iam::987654321098:role/test-role-2"},
+						},
+					},
+				},
+			},
+			expected: map[string]bool{
+				"123456789012": true,
+				"987654321098": true,
+			},
+		},
+		{
+			name: "multiple tagemons with overlapping accounts",
+			tagemons: []tagemonv1alpha1.Tagemon{
+				{
+					Spec: tagemonv1alpha1.TagemonSpec{
+						Roles: []tagemonv1alpha1.AWSRole{
+							{RoleArn: "arn:aws:iam::123456789012:role/role-1"},
+						},
+					},
+				},
+				{
+					Spec: tagemonv1alpha1.TagemonSpec{
+						Roles: []tagemonv1alpha1.AWSRole{
+							{RoleArn: "arn:aws:iam::123456789012:role/role-2"}, // Same account
+							{RoleArn: "arn:aws:iam::111222333444:role/role-3"},
+						},
+					},
+				},
+			},
+			expected: map[string]bool{
+				"123456789012": true,
+				"111222333444": true,
+			},
+		},
+		{
+			name:     "empty tagemon list",
+			tagemons: []tagemonv1alpha1.Tagemon{},
+			expected: map[string]bool{},
+		},
+		{
+			name: "tagemon with no roles",
+			tagemons: []tagemonv1alpha1.Tagemon{
+				{
+					Spec: tagemonv1alpha1.TagemonSpec{
+						Roles: []tagemonv1alpha1.AWSRole{},
+					},
+				},
+			},
+			expected: map[string]bool{},
+		},
+		{
+			name: "invalid role ARN format",
+			tagemons: []tagemonv1alpha1.Tagemon{
+				{
+					Spec: tagemonv1alpha1.TagemonSpec{
+						Roles: []tagemonv1alpha1.AWSRole{
+							{RoleArn: "invalid-arn-format"},
+							{RoleArn: "arn:aws:iam::123456789012:role/valid-role"},
+						},
+					},
+				},
+			},
+			expected: map[string]bool{
+				"123456789012": true,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := handler.extractAllowedAccountIDs(tt.tagemons)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestExtractSearchTagsFilters(t *testing.T) {
+	handler := &Handler{}
+
+	tests := []struct {
+		name     string
+		tagemons []tagemonv1alpha1.Tagemon
+		expected []tagemonv1alpha1.TagemonTag
+	}{
+		{
+			name: "single tagemon with search tags",
+			tagemons: []tagemonv1alpha1.Tagemon{
+				{
+					Spec: tagemonv1alpha1.TagemonSpec{
+						SearchTags: []tagemonv1alpha1.TagemonTag{
+							{Key: "Environment", Value: "production"},
+							{Key: "Team", Value: "platform"},
+						},
+					},
+				},
+			},
+			expected: []tagemonv1alpha1.TagemonTag{
+				{Key: "Environment", Value: "production"},
+				{Key: "Team", Value: "platform"},
+			},
+		},
+		{
+			name: "multiple tagemons with search tags",
+			tagemons: []tagemonv1alpha1.Tagemon{
+				{
+					Spec: tagemonv1alpha1.TagemonSpec{
+						SearchTags: []tagemonv1alpha1.TagemonTag{
+							{Key: "Environment", Value: "production"},
+						},
+					},
+				},
+				{
+					Spec: tagemonv1alpha1.TagemonSpec{
+						SearchTags: []tagemonv1alpha1.TagemonTag{
+							{Key: "Team", Value: "platform"},
+							{Key: "CostCenter", Value: "engineering"},
+						},
+					},
+				},
+			},
+			expected: []tagemonv1alpha1.TagemonTag{
+				{Key: "Environment", Value: "production"},
+				{Key: "Team", Value: "platform"},
+				{Key: "CostCenter", Value: "engineering"},
+			},
+		},
+		{
+			name:     "empty tagemon list",
+			tagemons: []tagemonv1alpha1.Tagemon{},
+			expected: []tagemonv1alpha1.TagemonTag{},
+		},
+		{
+			name: "tagemon with no search tags",
+			tagemons: []tagemonv1alpha1.Tagemon{
+				{
+					Spec: tagemonv1alpha1.TagemonSpec{
+						SearchTags: []tagemonv1alpha1.TagemonTag{},
+					},
+				},
+			},
+			expected: []tagemonv1alpha1.TagemonTag{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := handler.extractSearchTagsFilters(tt.tagemons)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestIsResourceRelevant(t *testing.T) {
+	handler := &Handler{}
+
+	tests := []struct {
+		name              string
+		resource          interface{}
+		allowedAccountIDs map[string]bool
+		searchTags        []tagemonv1alpha1.TagemonTag
+		expected          bool
+		description       string
+	}{
+		{
+			name: "resource matches account and search tags",
+			resource: &mockResource{
+				id: "arn:aws:s3:us-west-2:123456789012:bucket/test-bucket",
+				tags: map[string]string{
+					"Environment": "production",
+					"Team":        "platform",
+					"Name":        "test-bucket",
+				},
+			},
+			allowedAccountIDs: map[string]bool{
+				"123456789012": true,
+			},
+			searchTags: []tagemonv1alpha1.TagemonTag{
+				{Key: "Environment", Value: "production"},
+				{Key: "Team", Value: "platform"},
+			},
+			expected:    true,
+			description: "resource should be relevant when it matches both account and all search tags",
+		},
+		{
+			name: "resource matches account but missing search tag",
+			resource: &mockResource{
+				id: "arn:aws:s3:us-west-2:123456789012:bucket/test-bucket",
+				tags: map[string]string{
+					"Environment": "production",
+					"Name":        "test-bucket",
+				},
+			},
+			allowedAccountIDs: map[string]bool{
+				"123456789012": true,
+			},
+			searchTags: []tagemonv1alpha1.TagemonTag{
+				{Key: "Environment", Value: "production"},
+				{Key: "Team", Value: "platform"}, // Missing this tag
+			},
+			expected:    false,
+			description: "resource should be irrelevant when missing required search tags",
+		},
+		{
+			name: "resource has search tags but wrong account",
+			resource: &mockResource{
+				id: "arn:aws:s3:::test-bucket:999888777666",
+				tags: map[string]string{
+					"Environment": "production",
+					"Team":        "platform",
+				},
+			},
+			allowedAccountIDs: map[string]bool{
+				"123456789012": true,
+			},
+			searchTags: []tagemonv1alpha1.TagemonTag{
+				{Key: "Environment", Value: "production"},
+				{Key: "Team", Value: "platform"},
+			},
+			expected:    false,
+			description: "resource should be irrelevant when account is not allowed",
+		},
+		{
+			name: "resource matches account, no search tags required",
+			resource: &mockResource{
+				id: "arn:aws:s3:us-west-2:123456789012:bucket/test-bucket",
+				tags: map[string]string{
+					"Name": "test-bucket",
+				},
+			},
+			allowedAccountIDs: map[string]bool{
+				"123456789012": true,
+			},
+			searchTags:  []tagemonv1alpha1.TagemonTag{},
+			expected:    true,
+			description: "resource should be relevant when account matches and no search tags required",
+		},
+		{
+			name: "no account filtering, resource has search tags",
+			resource: &mockResource{
+				id: "arn:aws:s3:us-west-2:123456789012:bucket/test-bucket",
+				tags: map[string]string{
+					"Environment": "production",
+					"Team":        "platform",
+				},
+			},
+			allowedAccountIDs: map[string]bool{},
+			searchTags: []tagemonv1alpha1.TagemonTag{
+				{Key: "Environment", Value: "production"},
+				{Key: "Team", Value: "platform"},
+			},
+			expected:    true,
+			description: "resource should be relevant when no account filtering and search tags match",
+		},
+		{
+			name: "no filtering at all",
+			resource: &mockResource{
+				id: "arn:aws:s3:us-west-2:123456789012:bucket/test-bucket",
+				tags: map[string]string{
+					"Name": "test-bucket",
+				},
+			},
+			allowedAccountIDs: map[string]bool{},
+			searchTags:        []tagemonv1alpha1.TagemonTag{},
+			expected:          true,
+			description:       "resource should be relevant when no filtering is applied",
+		},
+		{
+			name: "search tag value mismatch",
+			resource: &mockResource{
+				id: "arn:aws:s3:us-west-2:123456789012:bucket/test-bucket",
+				tags: map[string]string{
+					"Environment": "staging", // Wrong value
+					"Team":        "platform",
+				},
+			},
+			allowedAccountIDs: map[string]bool{
+				"123456789012": true,
+			},
+			searchTags: []tagemonv1alpha1.TagemonTag{
+				{Key: "Environment", Value: "production"}, // Expected production
+				{Key: "Team", Value: "platform"},
+			},
+			expected:    false,
+			description: "resource should be irrelevant when search tag value doesn't match",
+		},
+		{
+			name:              "invalid resource type",
+			resource:          "invalid-resource",
+			allowedAccountIDs: map[string]bool{"123456789012": true},
+			searchTags:        []tagemonv1alpha1.TagemonTag{},
+			expected:          false,
+			description:       "should return false for invalid resource types",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := handler.isResourceRelevant(tt.resource, tt.allowedAccountIDs, tt.searchTags)
+			assert.Equal(t, tt.expected, result, tt.description)
+		})
+	}
 }

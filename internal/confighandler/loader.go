@@ -43,6 +43,7 @@ func LoadConfig() *Config {
 
 	// Bind environment variables to config keys
 	_ = v.BindEnv("serviceAccountName", "TAGEMON_SERVICEACCOUNTNAME")
+	_ = v.BindEnv("watchNamespace", "TAGEMON_WATCHNAMESPACE")
 	_ = v.BindEnv("tagsHandler.viewArn", "TAGEMON_TAGSHANDLER_VIEWARN")
 	_ = v.BindEnv("tagsHandler.region", "TAGEMON_TAGSHANDLER_REGION")
 	_ = v.BindEnv("tagsHandler.namespace", "TAGEMON_TAGSHANDLER_NAMESPACE")

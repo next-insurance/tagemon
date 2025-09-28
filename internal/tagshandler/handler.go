@@ -89,6 +89,25 @@ func (h *Handler) CheckCompliance(ctx context.Context, namespace string, viewARN
 	// Build tag policy from CRs
 	policy, thresholdTagsMap := h.buildTagPolicy(tagemonList.Items)
 
+	// Extract allowed account IDs and search tags from all Tagemon CRs
+	allowedAccountIDs := h.extractAllowedAccountIDs(tagemonList.Items)
+	searchTagsFilters := h.extractSearchTagsFilters(tagemonList.Items)
+
+	if len(allowedAccountIDs) > 0 {
+		accountList := make([]string, 0, len(allowedAccountIDs))
+		for accountID := range allowedAccountIDs {
+			accountList = append(accountList, accountID)
+		}
+		logger.Info("Filtering resources by allowed accounts", "accounts", accountList)
+	}
+
+	if len(searchTagsFilters) > 0 {
+		logger.Info("Filtering resources by search tags", "searchTagsCount", len(searchTagsFilters))
+		for _, tag := range searchTagsFilters {
+			logger.V(1).Info("Search tag filter", "key", tag.Key, "value", tag.Value)
+		}
+	}
+
 	// Create AWS provider
 	provider, err := aws.NewProvider(ctx, aws.WithViewARN(viewARN), aws.WithRegion(region))
 	if err != nil {
@@ -102,13 +121,16 @@ func (h *Handler) CheckCompliance(ctx context.Context, namespace string, viewARN
 		return nil, fmt.Errorf("failed to execute tag patrol: %w", err)
 	}
 
-	// Process results
-	report := h.processResults(ctx, results, thresholdTagsMap)
+	// Process results with local filtering
+	report := h.processResults(ctx, results, thresholdTagsMap, allowedAccountIDs, searchTagsFilters)
 
 	logger.Info("Tag compliance check completed",
 		"totalResources", report.TotalResources,
 		"compliantResources", report.CompliantResources,
-		"complianceRate", report.ComplianceRate)
+		"violatingResources", report.ViolatingResources,
+		"complianceRate", report.ComplianceRate,
+		"filteredByAccounts", len(allowedAccountIDs) > 0,
+		"filteredBySearchTags", len(searchTagsFilters) > 0)
 
 	return report, nil
 }
@@ -207,6 +229,66 @@ func (h *Handler) buildTagPolicy(tagemons []tagemonv1alpha1.Tagemon) (*policyTyp
 	}
 
 	return policy, thresholdTagsMap
+}
+
+// extractAllowedAccountIDs extracts account IDs from AWS role ARNs across all Tagemon CRs
+func (h *Handler) extractAllowedAccountIDs(tagemons []tagemonv1alpha1.Tagemon) map[string]bool {
+	allowedAccountIDs := make(map[string]bool)
+
+	for _, tagemon := range tagemons {
+		for _, role := range tagemon.Spec.Roles {
+			// Extract account ID from role ARN: arn:aws:iam::ACCOUNT_ID:role/ROLE_NAME
+			parts := strings.Split(role.RoleArn, ":")
+			if len(parts) >= 5 {
+				accountID := parts[4]
+				allowedAccountIDs[accountID] = true
+			}
+		}
+	}
+
+	return allowedAccountIDs
+}
+
+// extractSearchTagsFilters extracts search tags from all Tagemon CRs for AWS Resource Explorer filtering
+func (h *Handler) extractSearchTagsFilters(tagemons []tagemonv1alpha1.Tagemon) []tagemonv1alpha1.TagemonTag {
+	searchTags := make([]tagemonv1alpha1.TagemonTag, 0)
+
+	for _, tagemon := range tagemons {
+		searchTags = append(searchTags, tagemon.Spec.SearchTags...)
+	}
+
+	return searchTags
+}
+
+// isResourceRelevant checks if a resource should be processed based on searchTags and AccountID
+func (h *Handler) isResourceRelevant(resource interface{}, allowedAccountIDs map[string]bool, searchTags []tagemonv1alpha1.TagemonTag) bool {
+
+	type CloudResource interface {
+		ID() string
+		Tags() map[string]string
+	}
+
+	r, ok := resource.(CloudResource)
+	if !ok {
+		return false
+	}
+
+	accountID := h.extractAccountID(r.ID())
+	if len(allowedAccountIDs) > 0 && !allowedAccountIDs[accountID] {
+		return false
+	}
+
+	if len(searchTags) > 0 {
+		resourceTags := r.Tags()
+
+		for _, searchTag := range searchTags {
+			if tagValue, exists := resourceTags[searchTag.Key]; !exists || tagValue != searchTag.Value {
+				return false
+			}
+		}
+	}
+
+	return true
 }
 
 // getOrCreateMetric gets or creates a Prometheus gauge for a threshold tag
@@ -374,7 +456,7 @@ func (h *Handler) extractAccountID(resourceARN string) string {
 }
 
 // processResults processes tag-patrol results, creates metrics for compliant resources and logs non-compliant ones
-func (h *Handler) processResults(ctx context.Context, results []patrol.Result, thresholdTagsMap map[string]map[string]tagemonv1alpha1.ThresholdTagType) *ComplianceReport {
+func (h *Handler) processResults(ctx context.Context, results []patrol.Result, thresholdTagsMap map[string]map[string]tagemonv1alpha1.ThresholdTagType, allowedAccountIDs map[string]bool, searchTags []tagemonv1alpha1.TagemonTag) *ComplianceReport {
 	logger := log.FromContext(ctx)
 
 	h.resetAllThresholdMetrics()
@@ -413,6 +495,13 @@ func (h *Handler) processResults(ctx context.Context, results []patrol.Result, t
 
 		// Process each resource in the result
 		for _, resource := range patrolResult.Resources {
+			if !h.isResourceRelevant(resource, allowedAccountIDs, searchTags) {
+				logger.V(1).Info("Skipping irrelevant resource",
+					"resource", resource.ID(),
+					"reason", "does not match monitored accounts or searchTags criteria")
+				continue
+			}
+
 			totalResources++
 			tagName := h.extractResourceName(resource.ID(), resource.Tags())
 			accountID := h.extractAccountID(resource.ID())
