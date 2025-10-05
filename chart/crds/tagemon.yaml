@@ -1,14 +1,8 @@
-{{- if .Values.crd.enable }}
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  labels:
-    {{- include "chart.labels" . | nindent 4 }}
   annotations:
-    {{- if .Values.crd.keep }}
-    "helm.sh/resource-policy": keep
-    {{- end }}
     controller-gen.kubebuilder.io/version: v0.18.0
   name: tagemons.tagemon.io
 spec:
@@ -79,12 +73,10 @@ spec:
                   type: object
                 minItems: 1
                 type: array
-              length:
-                description: Length is the default length in seconds for metric data
-                  retrieval, can be overridden in the metric configuration
-                format: int32
-                minimum: 1
-                type: integer
+              exportedTagsOnMetrics:
+                items:
+                  type: string
+                type: array
               metrics:
                 description: Metrics is the list of metrics to monitor
                 items:
@@ -93,11 +85,6 @@ spec:
                     addCloudwatchTimestamp:
                       description: AddCloudwatchTimestamp For Metric
                       type: boolean
-                    length:
-                      description: Length For Metric
-                      format: int32
-                      minimum: 1
-                      type: integer
                     name:
                       description: Name is the CloudWatch metric name
                       type: string
@@ -120,6 +107,37 @@ spec:
                         - Minimum
                         - SampleCount
                         type: string
+                      type: array
+                    thresholdTags:
+                      description: ThresholdTags is the list of threshold tag configurations
+                        for this metric
+                      items:
+                        description: ThresholdTag defines a threshold tag configuration
+                        properties:
+                          key:
+                            description: Key is the tag key to monitor
+                            type: string
+                          required:
+                            default: true
+                            description: Required indicates whether this threshold
+                              tag is mandatory for compliance
+                            type: boolean
+                          resourceType:
+                            description: ResourceType is the AWS resource type to
+                              apply this threshold tag to
+                            type: string
+                          type:
+                            description: Type is the type of the threshold tag value
+                            enum:
+                            - int
+                            - bool
+                            - percentage
+                            type: string
+                        required:
+                        - key
+                        - resourceType
+                        - type
+                        type: object
                       type: array
                   required:
                   - name
@@ -202,6 +220,12 @@ spec:
                   type: string
                 minItems: 1
                 type: array
+              scrapingInterval:
+                description: ScrapingInterval is the global scraping interval in seconds
+                  for all metrics
+                format: int32
+                minimum: 60
+                type: integer
               searchTags:
                 description: SearchTags are optional tags to filter resources
                 items:
@@ -232,31 +256,6 @@ spec:
                   - SampleCount
                   type: string
                 type: array
-              thresholdTags:
-                description: ThresholdTags is the list of threshold tag configurations
-                items:
-                  description: ThresholdTag defines a threshold tag configuration
-                  properties:
-                    key:
-                      description: Key is the tag key to monitor
-                      type: string
-                    resourceType:
-                      description: ResourceType is the AWS resource type to apply
-                        this threshold tag to
-                      type: string
-                    type:
-                      description: Type is the type of the threshold tag value
-                      enum:
-                      - int
-                      - bool
-                      - percentage
-                      type: string
-                  required:
-                  - key
-                  - resourceType
-                  - type
-                  type: object
-                type: array
               type:
                 description: Type is the AWS service type (e.g., AWS/RDS, AWS/Backup,
                   AWS/S3)
@@ -264,7 +263,6 @@ spec:
                 type: string
             required:
             - awsRoles
-            - length
             - metrics
             - period
             - regions
@@ -305,4 +303,3 @@ spec:
     storage: true
     subresources:
       status: {}
-{{- end -}}

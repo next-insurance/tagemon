@@ -20,25 +20,7 @@ spec:
       app.kubernetes.io/component: headless-service
   endpoints:
   - port: metrics
-    interval: {{ .Values.yaceServiceMonitor.interval | default "60s" }}
-    scrapeTimeout: {{ .Values.yaceServiceMonitor.scrapeTimeout | default "30s" }}
     path: {{ .Values.yaceServiceMonitor.path | default "/metrics" }}
-    scheme: {{ .Values.yaceServiceMonitor.scheme | default "http" }}
-    {{- if .Values.yaceServiceMonitor.relabelings }}
-    relabelings:
-    {{- range .Values.yaceServiceMonitor.relabelings }}
-    - sourceLabels: {{ .sourceLabels | toYaml | nindent 8 }}
-      {{- if .targetLabel }}
-      targetLabel: {{ .targetLabel }}
-      {{- end }}
-      {{- if .regex }}
-      regex: {{ .regex | quote }}
-      {{- end }}
-      {{- if .replacement }}
-      replacement: {{ .replacement | quote }}
-      {{- end }}
-    {{- end }}
-    {{- end }}
 {{- end }}
 ---
 {{- if .Values.controller.serviceMonitor.enabled -}}

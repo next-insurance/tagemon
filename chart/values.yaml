@@ -3,7 +3,7 @@ controller:
   
   image:
     repository: amitshlo/test-tag
-    tag: v1.0.2
+    tag: v1.0.0-a3def4e9
   
   args:
     - "--health-probe-bind-address=:8081"
@@ -70,10 +70,6 @@ controller:
 
 rbac:
   enable: true
-
-crd:
-  enable: true
-  keep: false  # Keep CRDs when uninstalling
 
 verification:
   postInstallCheck: true  # Enable post-install/upgrade verification hooks
