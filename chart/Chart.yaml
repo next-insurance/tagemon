@@ -1,5 +1,5 @@
 apiVersion: v2
-name: tagemon-dev-test
+name: test-tag
 description: A Helm chart to distribute the project tagemon-dev
 type: application
 version: 0.1.0

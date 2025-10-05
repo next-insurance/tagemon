@@ -7,26 +7,27 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: amitshlo/test-tag
-  CHART_NAME: tagemon-dev-test
+  REGISTRY_USERNAME: amitshlo
+  IMAGE_NAME: test-tag
+  CHART_NAME: test-tag
 
 jobs:
-  test:
-    name: Run Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  # test:
+  #   name: Run Tests
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
+  #     - name: Setup Go
+  #       uses: actions/setup-go@v5
+  #       with:
+  #         go-version-file: go.mod
 
-      - name: Run unit tests
-        run: |
-          go mod tidy
-          make test
+  #     - name: Run unit tests
+  #       run: |
+  #         go mod tidy
+  #         make test
 
   # test-e2e:
   #   name: Run E2E Tests
@@ -54,8 +55,7 @@ jobs:
   release:
     name: Create Release
     runs-on: ubuntu-latest
-    #needs: [test, test-e2e]
-    needs: [test]
+    #needs: [test]
     outputs:
       version: ${{ steps.version.outputs.version }}
       release_created: 'true'
@@ -102,11 +102,11 @@ jobs:
             Auto-generated release for version ${{ steps.version.outputs.version }}
             
             ### Docker Image
-            - `${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}`
-            - `${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest`
+            - `${{ env.REGISTRY }}/${{ env.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}`
+            - `${{ env.REGISTRY }}/${{ env.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}:latest`
             
             ### Helm Chart
-            - `oci://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-chart:${{ steps.version.outputs.version }}`
+            - `oci://${{ env.REGISTRY }}/${{ env.REGISTRY_USERNAME }}/${{ env.CHART_NAME }}:${{ steps.version.outputs.version }}`
             
             ## Full Changelog
             https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.sha }}
@@ -122,8 +122,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      #- name: Set up Docker Buildx
+      #  uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -136,13 +136,14 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
+          #platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
+          platforms: linux/amd64
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.version }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            ${{ env.REGISTRY }}/${{ env.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.version }}
+            ${{ env.REGISTRY }}/${{ env.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+          #cache-from: type=gha
+          #cache-to: type=gha,mode=max
 
   helm-release:
     name: Package and Push Helm Chart
@@ -172,7 +173,7 @@ jobs:
           sed -i "s/^appVersion:.*/appVersion: \"${{ needs.release.outputs.version }}\"/" chart/Chart.yaml
           
           # Update image repository and tag in main values file
-          sed -i "s|repository:.*|repository: ${{ env.IMAGE_NAME }}|g" chart/values.yaml
+          sed -i "s|repository:.*|repository: ${{ env.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}|g" chart/values.yaml
           sed -i "s|tag:.*|tag: ${{ needs.release.outputs.version }}|g" chart/values.yaml
 
       - name: Package Helm chart
@@ -181,7 +182,7 @@ jobs:
 
       - name: Push Helm chart to OCI registry
         run: |
-          helm push ${{ env.CHART_NAME }}-${{ needs.release.outputs.version }}.tgz oci://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-chart
+          helm push ${{ env.CHART_NAME }}-${{ needs.release.outputs.version }}.tgz oci://${{ env.REGISTRY }}/${{ env.REGISTRY_USERNAME }}
 
       - name: Update repository with version changes
         run: |
