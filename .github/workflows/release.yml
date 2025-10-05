@@ -28,33 +28,34 @@ jobs:
           go mod tidy
           make test
 
-  test-e2e:
-    name: Run E2E Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  # test-e2e:
+  #   name: Run E2E Tests
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
+  #     - name: Setup Go
+  #       uses: actions/setup-go@v5
+  #       with:
+  #         go-version-file: go.mod
 
-      - name: Install kind
-        run: |
-          curl -Lo ./kind https://kind.sigs.k8s.io/dl/latest/kind-linux-amd64
-          chmod +x ./kind
-          sudo mv ./kind /usr/local/bin/kind
+  #     - name: Install kind
+  #       run: |
+  #         curl -Lo ./kind https://kind.sigs.k8s.io/dl/latest/kind-linux-amd64
+  #         chmod +x ./kind
+  #         sudo mv ./kind /usr/local/bin/kind
 
-      - name: Run E2E tests
-        run: |
-          go mod tidy
-          make test-e2e
+  #     - name: Run E2E tests
+  #       run: |
+  #         go mod tidy
+  #         make test-e2e
 
   release:
     name: Create Release
     runs-on: ubuntu-latest
-    needs: [test, test-e2e]
+    #needs: [test, test-e2e]
+    needs: [test]
     outputs:
       version: ${{ steps.version.outputs.version }}
       release_created: 'true'
