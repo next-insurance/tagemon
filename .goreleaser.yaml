@@ -1,3 +1,14 @@
+builds:
+  - id: tagemon
+    binary: tagemon
+    main: ./cmd/main.go
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
 # Archive configuration
 archives:
   - id: tagemon
