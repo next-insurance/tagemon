@@ -1,0 +1,27 @@
+# Archive configuration
+archives:
+  - id: tagemon
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
+
+# Checksums
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+  algorithm: sha256
+
+# Changelog configuration
+changelog:
+  use: git
+  sort: asc
+  filters:
+    include:
+      - "^feat:"
+      - "^fix:"
+      - "^chore:"
+      - "^BREAKING CHANGE:"
