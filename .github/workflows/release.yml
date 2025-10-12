@@ -37,8 +37,9 @@ jobs:
     if: needs.goreleaser.outputs.version != ''
     env:
       REGISTRY: docker.io
-      REGISTRY_USERNAME: tagemon
-      IMAGE_NAME: tagemon
+      REGISTRY_USERNAME: amitshlo
+      IMAGE_NAME: test-tag
+      CHART_NAME: test-tag
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
