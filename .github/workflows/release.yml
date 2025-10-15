@@ -34,6 +34,13 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       
+      - name: Extract Helm Chart version
+        id: chart_version
+        run: |
+          CHART_VERSION=$(grep '^version:' chart/Chart.yaml | awk '{print $2}')
+          echo "CHART_VERSION=$CHART_VERSION" >> $GITHUB_ENV
+          echo "Chart version: $CHART_VERSION"
+      
       - name: Run GoReleaser
         id: goreleaser
         uses: goreleaser/goreleaser-action@v6
@@ -42,3 +49,4 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHART_VERSION: ${{ env.CHART_VERSION }}

@@ -1,0 +1,45 @@
+name: helm-release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "chart/Chart.yaml"
+
+jobs:
+  helm-release:
+    name: Package and Push Helm Chart
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY: docker.io
+      REGISTRY_USERNAME: amitshlo
+      CHART_NAME: test-tag
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Log in to Docker Hub for Helm
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Extract version from Chart.yaml
+        id: chart_version
+        run: |
+          VERSION=$(grep '^version:' chart/Chart.yaml | awk '{print $2}')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Chart version: $VERSION"
+
+      - name: Package Helm chart
+        run: |
+          helm package chart/
+
+      - name: Push Helm chart to OCI registry
+        run: |
+          helm push ${{ env.CHART_NAME }}-${{ steps.chart_version.outputs.version }}.tgz oci://${{ env.REGISTRY }}/${{ env.REGISTRY_USERNAME }}

@@ -36,7 +36,22 @@ release:
     ```bash
     docker pull docker.io/amitshlo/test-tag:latest
     ```
-
+    
+    ## Helm Chart ⎈
+    
+    The Helm chart version `{{ .Env.CHART_VERSION }}` is available in the OCI registry.
+    
+    Install using Helm:
+    
+    ```bash
+    helm install test-tag oci://docker.io/amitshlo/test-tag --version {{ .Env.CHART_VERSION }}
+    ```
+    
+    Or upgrade an existing installation:
+    
+    ```bash
+    helm upgrade test-tag oci://docker.io/amitshlo/test-tag --version {{ .Env.CHART_VERSION }}
+    ```
     ---
     
     **Full Changelog**: {{ .ReleaseURL }}/compare/{{ .PreviousTag }}...{{ .Tag }}
