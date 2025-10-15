@@ -1,15 +1,41 @@
 version: 2
 
 builds:
-  - id: tagemon
-    binary: tagemon
-    main: ./cmd/main.go
-    goos:
-      - linux
-      - darwin
-    goarch:
-      - amd64
-      - arm64
+  - skip: true
+
+dockers:
+  - image_templates:
+      - "docker.io/amitshlo/test-tag:{{ .Tag }}"
+      - "docker.io/amitshlo/test-tag:latest"
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+
+release:
+  github:
+    owner: "{{ .Env.GITHUB_REPOSITORY_OWNER }}"
+    name: "{{ .ProjectName }}"
+  
+  footer: |
+    ## Docker Images 🐳
+    
+    This release is available as a Docker image:
+    
+    ```bash
+    docker pull docker.io/amitshlo/test-tag:{{ .Tag }}
+    ```
+    
+    Or use the latest tag:
+    
+    ```bash
+    docker pull docker.io/amitshlo/test-tag:latest
+    ```
+
+    ---
+    
+    **Full Changelog**: https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/{{ .ProjectName }}/compare/{{ .PreviousTag }}...{{ .Tag }}
 
 # Changelog configuration
 changelog:
