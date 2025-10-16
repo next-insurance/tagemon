@@ -97,6 +97,10 @@ controller:
   image:
     repository: amitshlo/amit-tag
     tag: v1.0.0
+  
+  # Log level for the controller (debug, info, error)
+  logLevel: "info"
+  
   resources:
     limits:
       cpu: 500m
@@ -206,6 +210,7 @@ spec:
 | `controller.replicas` | Number of controller replicas | `1` |
 | `controller.image.repository` | Controller image repository | `amitshlo/amit-tag` |
 | `controller.image.tag` | Controller image tag | `v1.0.0` |
+| `controller.logLevel` | Log level for the controller (debug, info, error) | `info` |
 | `controller.resources` | Controller resource limits/requests | See values.yaml |
 | `controller.serviceAccountName` | Service account name for controller | `tagemon-dev-controller-manager` |
 | `controller.config.yaceServiceAccountName` | Service account name for YACE pods | `tagemon-dev-yace` |

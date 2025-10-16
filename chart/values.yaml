@@ -5,6 +5,8 @@ controller:
     repository: amitshlo/test-tag
     tag: v1.0.0-a3def4e9
   
+  logLevel: "info"
+  
   args:
     - "--health-probe-bind-address=:8081"
     - "--metrics-bind-address=:8080"

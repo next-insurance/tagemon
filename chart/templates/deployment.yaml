@@ -31,6 +31,9 @@ spec:
             {{- range .Values.controller.args }}
             - {{ . }}
             {{- end }}
+            {{- if .Values.controller.logLevel }}
+            - "--zap-log-level={{ .Values.controller.logLevel }}"
+            {{- end }}
           command:
             - /manager
           image: {{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag }}
