@@ -3,6 +3,8 @@ name: Lint
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    paths-ignore:
+      - 'chart/**'
 
 jobs:
   lint:
