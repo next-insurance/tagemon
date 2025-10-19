@@ -13,8 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       REGISTRY: docker.io
-      REGISTRY_USERNAME: amitshlo
-      CHART_NAME: test-tag
+      REGISTRY_USERNAME: nextinsurancedevops
+      CHART_NAME: tagemon
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

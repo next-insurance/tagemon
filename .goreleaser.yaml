@@ -5,7 +5,7 @@ builds:
 
 dockers_v2:
   - images:
-      - "docker.io/amitshlo/test-tag"
+      - "docker.io/nextinsurancedevops/tagemon"
     tags:
       - "{{ .Tag }}"
       - "latest"
@@ -28,13 +28,13 @@ release:
     This release is available as a Docker image:
     
     ```bash
-    docker pull docker.io/amitshlo/test-tag:{{ .Tag }}
+    docker pull docker.io/nextinsurancedevops/tagemon:{{ .Tag }}
     ```
     
     Or use the latest tag:
     
     ```bash
-    docker pull docker.io/amitshlo/test-tag:latest
+    docker pull docker.io/nextinsurancedevops/tagemon:latest
     ```
     
     ## Helm Chart ⎈
@@ -44,13 +44,13 @@ release:
     Install using Helm:
     
     ```bash
-    helm install test-tag oci://docker.io/amitshlo/test-tag --version {{ .Env.CHART_VERSION }}
+    helm install tagemon oci://docker.io/nextinsurancedevops/tagemon --version {{ .Env.CHART_VERSION }}
     ```
     
     Or upgrade an existing installation:
     
     ```bash
-    helm upgrade test-tag oci://docker.io/amitshlo/test-tag --version {{ .Env.CHART_VERSION }}
+    helm upgrade tagemon oci://docker.io/nextinsurancedevops/tagemon --version {{ .Env.CHART_VERSION }}
     ```
     ---
     

@@ -2,7 +2,7 @@ controller:
   replicas: 1
   
   image:
-    repository: amitshlo/test-tag
+    repository: nextinsurancedevops/tagemon
     tag: v1.0.0-a3def4e9
   
   logLevel: "info"
