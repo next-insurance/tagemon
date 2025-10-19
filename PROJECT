@@ -6,8 +6,8 @@ cliVersion: 4.6.0
 domain: tagemon.io
 layout:
 - go.kubebuilder.io/v4
-projectName: tagemon-dev
-repo: github.com/next-insurance/tagemon-dev
+projectName: tagemon
+repo: github.com/next-insurance/tagemon
 resources:
 - api:
     crdVersion: v1
@@ -16,6 +16,6 @@ resources:
   domain: tagemon.io
   group: tagemon-controller
   kind: Tagemon
-  path: github.com/next-insurance/tagemon-dev/api/v1alpha1
+  path: github.com/next-insurance/tagemon/api/v1alpha1
   version: v1alpha1
 version: "3"

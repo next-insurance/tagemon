@@ -39,9 +39,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/yaml"
 
-	v1alpha1 "github.com/next-insurance/tagemon-dev/api/v1alpha1"
-	"github.com/next-insurance/tagemon-dev/internal/confighandler"
-	"github.com/next-insurance/tagemon-dev/internal/tagshandler"
+	v1alpha1 "github.com/next-insurance/tagemon/api/v1alpha1"
+	"github.com/next-insurance/tagemon/internal/confighandler"
+	"github.com/next-insurance/tagemon/internal/tagshandler"
 )
 
 const (

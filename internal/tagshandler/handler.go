@@ -28,14 +28,14 @@ import (
 	"github.com/eliran89c/tag-patrol/pkg/cloudresource/provider/aws"
 	"github.com/eliran89c/tag-patrol/pkg/patrol"
 	policyTypes "github.com/eliran89c/tag-patrol/pkg/policy/types"
-	tagemonv1alpha1 "github.com/next-insurance/tagemon-dev/api/v1alpha1"
+	tagemonv1alpha1 "github.com/next-insurance/tagemon/api/v1alpha1"
 	"github.com/prometheus/client_golang/prometheus"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
-	"github.com/next-insurance/tagemon-dev/internal/confighandler"
+	"github.com/next-insurance/tagemon/internal/confighandler"
 )
 
 type Handler struct {

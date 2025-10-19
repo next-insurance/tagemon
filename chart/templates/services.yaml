@@ -3,7 +3,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: tagemon-dev-controller-manager-metrics-service
+  name: tagemon-controller-manager-metrics-service
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "chart.labels" . | nindent 4 }}

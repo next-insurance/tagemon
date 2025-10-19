@@ -19,7 +19,7 @@ package tagshandler
 import (
 	"testing"
 
-	tagemonv1alpha1 "github.com/next-insurance/tagemon-dev/api/v1alpha1"
+	tagemonv1alpha1 "github.com/next-insurance/tagemon/api/v1alpha1"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 )

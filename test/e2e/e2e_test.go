@@ -27,20 +27,20 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/next-insurance/tagemon-dev/test/utils"
+	"github.com/next-insurance/tagemon/test/utils"
 )
 
 // namespace where the project is deployed in
-const namespace = "tagemon-dev-system"
+const namespace = "tagemon-system"
 
 // serviceAccountName created for the project
-const serviceAccountName = "tagemon-dev-controller-manager"
+const serviceAccountName = "tagemon-controller-manager"
 
 // metricsServiceName is the name of the metrics service of the project
-const metricsServiceName = "tagemon-dev-controller-manager-metrics-service"
+const metricsServiceName = "tagemon-controller-manager-metrics-service"
 
 // metricsRoleBindingName is the name of the RBAC that will be created to allow get the metrics data
-const metricsRoleBindingName = "tagemon-dev-metrics-binding"
+const metricsRoleBindingName = "tagemon-metrics-binding"
 
 var _ = Describe("Manager", Ordered, func() {
 	var controllerPodName string
@@ -173,7 +173,7 @@ var _ = Describe("Manager", Ordered, func() {
 		It("should ensure the metrics endpoint is serving metrics", func() {
 			By("creating a ClusterRoleBinding for the service account to allow access to metrics")
 			cmd := exec.Command("kubectl", "create", "clusterrolebinding", metricsRoleBindingName,
-				"--clusterrole=tagemon-dev-metrics-reader",
+				"--clusterrole=tagemon-metrics-reader",
 				fmt.Sprintf("--serviceaccount=%s:%s", namespace, serviceAccountName),
 			)
 			_, err := utils.Run(cmd)

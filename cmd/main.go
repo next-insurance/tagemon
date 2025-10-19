@@ -38,10 +38,10 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	tagemonv1alpha1 "github.com/next-insurance/tagemon-dev/api/v1alpha1"
-	"github.com/next-insurance/tagemon-dev/internal/confighandler"
-	"github.com/next-insurance/tagemon-dev/internal/tagshandler"
-	"github.com/next-insurance/tagemon-dev/internal/yacehandler"
+	tagemonv1alpha1 "github.com/next-insurance/tagemon/api/v1alpha1"
+	"github.com/next-insurance/tagemon/internal/confighandler"
+	"github.com/next-insurance/tagemon/internal/tagshandler"
+	"github.com/next-insurance/tagemon/internal/yacehandler"
 	// +kubebuilder:scaffold:imports
 )
 

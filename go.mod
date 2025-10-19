@@ -1,4 +1,4 @@
-module github.com/next-insurance/tagemon-dev
+module github.com/next-insurance/tagemon
 
 go 1.24.1
 

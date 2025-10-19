@@ -32,8 +32,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	v1alpha1 "github.com/next-insurance/tagemon-dev/api/v1alpha1"
-	"github.com/next-insurance/tagemon-dev/internal/confighandler"
+	v1alpha1 "github.com/next-insurance/tagemon/api/v1alpha1"
+	"github.com/next-insurance/tagemon/internal/confighandler"
 )
 
 // =============================================================================

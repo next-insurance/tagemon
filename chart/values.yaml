@@ -3,7 +3,7 @@ controller:
   
   image:
     repository: nextinsurancedevops/tagemon
-    tag: v1.0.0-a3def4e9
+    tag: v0.0.8
   
   logLevel: "info"
   
@@ -46,10 +46,10 @@ controller:
       type: RuntimeDefault
 
   terminationGracePeriodSeconds: 10
-  serviceAccountName: tagemon-dev-controller-manager
+  serviceAccountName: tagemon-controller-manager
 
   config:
-    yaceServiceAccountName: tagemon-dev-yace
+    yaceServiceAccountName: tagemon-yace
     
     tagsHandler:
       viewArn: ""  # REQUIRED: AWS Resource Explorer view ARN

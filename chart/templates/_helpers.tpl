@@ -8,10 +8,10 @@ Expand the name of the chart.
   {{- else if .Values.nameOverride }}
     {{ .Values.nameOverride | trunc 63 | trimSuffix "-" }}
   {{- else }}
-    tagemon-dev
+    tagemon
   {{- end }}
 {{- else }}
-  tagemon-dev
+  tagemon
 {{- end }}
 {{- end }}
 

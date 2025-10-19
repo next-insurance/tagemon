@@ -95,7 +95,7 @@ controller:
   # Deployment configuration
   replicas: 1
   image:
-    repository: amitshlo/amit-tag
+    repository: nextinsurancedevops/tagemon
     tag: v1.0.0
   
   # Log level for the controller (debug, info, error)
@@ -110,12 +110,12 @@ controller:
       memory: 64Mi
   
   # Service account for the controller
-  serviceAccountName: tagemon-dev-controller-manager
+  serviceAccountName: tagemon-controller-manager
   
   # Runtime configuration
   config:
     # Service account for YACE pods created by the operator
-    yaceServiceAccountName: tagemon-dev-yace
+    yaceServiceAccountName: tagemon-yace
     
     tagsHandler:
       viewArn: "arn:aws:resource-explorer-2:us-west-2:123456789012:view/MainView/abc123"  # REQUIRED
@@ -212,8 +212,8 @@ spec:
 | `controller.image.tag` | Controller image tag | `v1.0.0` |
 | `controller.logLevel` | Log level for the controller (debug, info, error) | `info` |
 | `controller.resources` | Controller resource limits/requests | See values.yaml |
-| `controller.serviceAccountName` | Service account name for controller | `tagemon-dev-controller-manager` |
-| `controller.config.yaceServiceAccountName` | Service account name for YACE pods | `tagemon-dev-yace` |
+| `controller.serviceAccountName` | Service account name for controller | `tagemon-controller-manager` |
+| `controller.config.yaceServiceAccountName` | Service account name for YACE pods | `tagemon-yace` |
 | `controller.config.tagsHandler.viewArn` | AWS Resource Explorer view ARN (REQUIRED) | `""` |
 | `controller.config.tagsHandler.region` | AWS region for Resource Explorer (REQUIRED) | `us-east-1` |
 | `controller.config.tagsHandler.interval` | Tag polling interval | `1m` |
@@ -230,8 +230,8 @@ spec:
 
 ### Check Operator Status
 ```bash
-kubectl get deployment tagemon-dev-controller-manager
-kubectl logs deployment/tagemon-dev-controller-manager
+kubectl get deployment tagemon-controller-manager
+kubectl logs deployment/tagemon-controller-manager
 ```
 
 ### Check Tagemon Resources

@@ -74,7 +74,6 @@ spec:
                 minItems: 1
                 type: array
               exportedTagsOnMetrics:
-                description: ExportedTagsOnMetrics are additional tags to export
                 items:
                   type: string
                 type: array
