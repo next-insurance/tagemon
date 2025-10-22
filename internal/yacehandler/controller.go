@@ -1,19 +1,3 @@
-/*
-Copyright 2025.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package yacehandler
 
 import (
@@ -120,7 +104,6 @@ func (r *Reconciler) handleCreate(ctx context.Context, tagemon *v1alpha1.Tagemon
 	controllerutil.AddFinalizer(tagemon, finalizerName)
 	if err := r.Update(ctx, tagemon); err != nil {
 		if errors.IsConflict(err) {
-			// Retry on conflict
 			return ctrl.Result{Requeue: true}, nil
 		}
 		return ctrl.Result{}, err
@@ -128,7 +111,6 @@ func (r *Reconciler) handleCreate(ctx context.Context, tagemon *v1alpha1.Tagemon
 
 	logger.Info("TAGEMON CREATE SUCCESS", "name", tagemon.Name, "type", tagemon.Spec.Type, "regions", tagemon.Spec.Regions)
 
-	// Trigger tagshandler on create event
 	if r.TagsHandler != nil {
 		go func() {
 			logger.Info("Triggering TagsHandler compliance check on CREATE", "name", tagemon.Name)
@@ -168,7 +150,6 @@ func (r *Reconciler) handleModify(ctx context.Context, tagemon *v1alpha1.Tagemon
 
 	logger.Info("TAGEMON MODIFY SUCCESS", "name", tagemon.Name, "type", tagemon.Spec.Type, "regions", tagemon.Spec.Regions)
 
-	// Trigger tagshandler on modify event
 	if r.TagsHandler != nil {
 		go func() {
 			logger.Info("Triggering TagsHandler compliance check on MODIFY", "name", tagemon.Name)
@@ -197,7 +178,6 @@ func (r *Reconciler) handleDelete(ctx context.Context, tagemon *v1alpha1.Tagemon
 	controllerutil.RemoveFinalizer(tagemon, finalizerName)
 	if err := r.Update(ctx, tagemon); err != nil {
 		if errors.IsConflict(err) {
-			// Retry on conflict
 			return ctrl.Result{Requeue: true}, nil
 		}
 		return ctrl.Result{}, err
@@ -313,7 +293,6 @@ func (r *Reconciler) createDeployment(ctx context.Context, tagemon *v1alpha1.Tag
 		},
 	}
 
-	// Only set ServiceAccountName if it's configured
 	if r.Config.ServiceAccountName != "" {
 		deployment.Spec.Template.Spec.ServiceAccountName = r.Config.ServiceAccountName
 	}
@@ -395,12 +374,10 @@ func (r *Reconciler) updateDeployment(ctx context.Context, tagemon *v1alpha1.Tag
 
 	r.applyPodResources(updated, tagemon)
 
-	// If nothing changed, return early
 	if reflect.DeepEqual(dep.Spec.Template.Spec, updated.Spec.Template.Spec) {
 		return nil
 	}
 
-	// Persist changes
 	dep.Spec.Template.Spec = updated.Spec.Template.Spec
 	if err := r.Update(ctx, dep); err != nil {
 		return err
@@ -527,7 +504,6 @@ func (r *Reconciler) updateStatus(ctx context.Context, tagemon *v1alpha1.Tagemon
 	tagemon.Status.ObservedGeneration = tagemon.GetGeneration()
 	if err := r.Status().Update(ctx, tagemon); err != nil {
 		if errors.IsConflict(err) {
-			// Retry on conflict
 			return ctrl.Result{Requeue: true}, nil
 		}
 		return ctrl.Result{}, err
@@ -559,7 +535,6 @@ func setMetricOrGlobalValue(m map[string]interface{}, key string, metric *v1alph
 	}
 }
 
-// getScrapingInterval returns the scraping interval from the spec or a default of 300 seconds
 func getScrapingInterval(tagemon *v1alpha1.Tagemon) int32 {
 	if tagemon.Spec.ScrapingInterval != nil {
 		return *tagemon.Spec.ScrapingInterval

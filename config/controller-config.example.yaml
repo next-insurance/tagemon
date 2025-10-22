@@ -1,0 +1,11 @@
+# Example controller configuration for local development with 'make run'
+# Copy this file to controller-config.yaml and update with your values
+
+serviceAccountName: your-service-account-name
+watchNamespace: "your-namespace"
+tagsHandler:
+  viewArn: "arn:aws:resource-explorer-2:REGION:ACCOUNT:view/ViewName/VIEW-ID"
+  region: "us-west-2"
+  interval: "1m"
+
+# Note: When deployed via Helm, these values come from chart/values.yaml instead

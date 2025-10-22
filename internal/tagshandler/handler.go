@@ -1,19 +1,3 @@
-/*
-Copyright 2025.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package tagshandler
 
 import (
@@ -52,7 +36,6 @@ func New(k8sClient client.Client) *Handler {
 	}
 }
 
-// ResourceResult represents the compliance result for a single resource
 type ResourceResult struct {
 	ResourceARN   string            `json:"resourceArn"`
 	ResourceType  string            `json:"resourceType"`
@@ -62,7 +45,6 @@ type ResourceResult struct {
 	Tags          map[string]string `json:"tags,omitempty"`
 }
 
-// ComplianceReport represents the overall compliance report
 type ComplianceReport struct {
 	TotalResources     int              `json:"totalResources"`
 	CompliantResources int              `json:"compliantResources"`
@@ -71,11 +53,9 @@ type ComplianceReport struct {
 	Results            []ResourceResult `json:"results"`
 }
 
-// CheckCompliance reads Tagemon CRs and checks tag compliance for resources
 func (h *Handler) CheckCompliance(ctx context.Context, namespace string, viewARN string, region string) (*ComplianceReport, error) {
 	logger := log.FromContext(ctx)
 
-	// Get all Tagemon CRs in the namespace
 	tagemonList := &tagemonv1alpha1.TagemonList{}
 	if err := h.client.List(ctx, tagemonList, client.InNamespace(namespace)); err != nil {
 		return nil, fmt.Errorf("failed to list Tagemon CRs: %w", err)
@@ -86,10 +66,7 @@ func (h *Handler) CheckCompliance(ctx context.Context, namespace string, viewARN
 		return &ComplianceReport{}, nil
 	}
 
-	// Build tag policy from CRs
 	policy, thresholdTagsMap := h.buildTagPolicy(tagemonList.Items)
-
-	// Extract allowed account IDs and search tags from all Tagemon CRs
 	allowedAccountIDs := h.extractAllowedAccountIDs(tagemonList.Items)
 	searchTagsFilters := h.extractSearchTagsFilters(tagemonList.Items)
 
@@ -108,20 +85,17 @@ func (h *Handler) CheckCompliance(ctx context.Context, namespace string, viewARN
 		}
 	}
 
-	// Create AWS provider
 	provider, err := aws.NewProvider(ctx, aws.WithViewARN(viewARN), aws.WithRegion(region))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create AWS provider: %w", err)
 	}
 
-	// Run tag patrol
 	p := patrol.New(provider, &patrol.Options{StopOnError: false, ConcurrentWorkers: 10})
 	results, err := p.RunFromPolicy(ctx, policy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute tag patrol: %w", err)
 	}
 
-	// Process results with local filtering
 	report := h.processResults(ctx, results, thresholdTagsMap, allowedAccountIDs, searchTagsFilters)
 
 	logger.Info("Tag compliance check completed",
@@ -135,26 +109,21 @@ func (h *Handler) CheckCompliance(ctx context.Context, namespace string, viewARN
 	return report, nil
 }
 
-// buildTagPolicy creates a tag-patrol policy from Tagemon CRs without validation
 func (h *Handler) buildTagPolicy(tagemons []tagemonv1alpha1.Tagemon) (*policyTypes.Policy, map[string]map[string]tagemonv1alpha1.ThresholdTagType) {
 	policy := &policyTypes.Policy{
 		Blueprints: make(map[string]*policyTypes.Blueprint),
 		Resources:  make(map[string]map[string]*policyTypes.ResourceConfig),
 	}
 
-	// Map to track threshold tags by service and resource type
 	thresholdTagsMap := make(map[string]map[string]tagemonv1alpha1.ThresholdTagType)
 
 	for _, tagemon := range tagemons {
-		// Parse AWS service type (e.g., "AWS/S3" -> "s3")
 		serviceType := strings.ToLower(strings.TrimPrefix(tagemon.Spec.Type, "AWS/"))
 
-		// Create threshold tags map for this service
 		if thresholdTagsMap[serviceType] == nil {
 			thresholdTagsMap[serviceType] = make(map[string]tagemonv1alpha1.ThresholdTagType)
 		}
 
-		// Collect all threshold tags from all metrics
 		var allThresholdTags []tagemonv1alpha1.ThresholdTag
 		for _, metric := range tagemon.Spec.Metrics {
 			allThresholdTags = append(allThresholdTags, metric.ThresholdTags...)
@@ -164,7 +133,6 @@ func (h *Handler) buildTagPolicy(tagemons []tagemonv1alpha1.Tagemon) (*policyTyp
 			continue
 		}
 
-		// Group threshold tags by resource type
 		resourceTypeGroups := make(map[string][]tagemonv1alpha1.ThresholdTag)
 		for _, thresholdTag := range allThresholdTags {
 			resourceType := thresholdTag.ResourceType
@@ -172,7 +140,6 @@ func (h *Handler) buildTagPolicy(tagemons []tagemonv1alpha1.Tagemon) (*policyTyp
 			thresholdTagsMap[serviceType][thresholdTag.Key] = thresholdTag.Type
 		}
 
-		// Create blueprints and resource configs for each resource type group
 		for resourceType, thresholdTags := range resourceTypeGroups {
 			var mandatoryKeys []string
 			validations := make(map[string]*policyTypes.Validation)
@@ -180,7 +147,6 @@ func (h *Handler) buildTagPolicy(tagemons []tagemonv1alpha1.Tagemon) (*policyTyp
 			mandatoryKeys = append(mandatoryKeys, "Name")
 
 			for _, thresholdTag := range thresholdTags {
-				// Add to mandatory keys only if required (default true)
 				isRequired := true
 				if thresholdTag.Required != nil {
 					isRequired = *thresholdTag.Required
@@ -190,7 +156,6 @@ func (h *Handler) buildTagPolicy(tagemons []tagemonv1alpha1.Tagemon) (*policyTyp
 					mandatoryKeys = append(mandatoryKeys, thresholdTag.Key)
 				}
 
-				// Create validation based on type
 				validation := &policyTypes.Validation{}
 				switch thresholdTag.Type {
 				case tagemonv1alpha1.ThresholdTagTypeInt:
@@ -205,7 +170,6 @@ func (h *Handler) buildTagPolicy(tagemons []tagemonv1alpha1.Tagemon) (*policyTyp
 				validations[thresholdTag.Key] = validation
 			}
 
-			// Create blueprint for this service-resourcetype combination
 			if len(mandatoryKeys) > 0 {
 				blueprintName := fmt.Sprintf("%s-%s-base", serviceType, resourceType)
 
@@ -220,7 +184,6 @@ func (h *Handler) buildTagPolicy(tagemons []tagemonv1alpha1.Tagemon) (*policyTyp
 					policy.Resources[serviceType] = make(map[string]*policyTypes.ResourceConfig)
 				}
 
-				// Use the specific resource type or wildcard
 				policy.Resources[serviceType][resourceType] = &policyTypes.ResourceConfig{
 					Extends: []string{fmt.Sprintf("blueprints.%s", blueprintName)},
 				}
@@ -231,7 +194,6 @@ func (h *Handler) buildTagPolicy(tagemons []tagemonv1alpha1.Tagemon) (*policyTyp
 	return policy, thresholdTagsMap
 }
 
-// extractAllowedAccountIDs extracts account IDs from AWS role ARNs across all Tagemon CRs
 func (h *Handler) extractAllowedAccountIDs(tagemons []tagemonv1alpha1.Tagemon) map[string]bool {
 	allowedAccountIDs := make(map[string]bool)
 
@@ -249,7 +211,6 @@ func (h *Handler) extractAllowedAccountIDs(tagemons []tagemonv1alpha1.Tagemon) m
 	return allowedAccountIDs
 }
 
-// extractSearchTagsFilters extracts search tags from all Tagemon CRs for AWS Resource Explorer filtering
 func (h *Handler) extractSearchTagsFilters(tagemons []tagemonv1alpha1.Tagemon) []tagemonv1alpha1.TagemonTag {
 	searchTags := make([]tagemonv1alpha1.TagemonTag, 0)
 
@@ -260,7 +221,6 @@ func (h *Handler) extractSearchTagsFilters(tagemons []tagemonv1alpha1.Tagemon) [
 	return searchTags
 }
 
-// isResourceRelevant checks if a resource should be processed based on searchTags and AccountID
 func (h *Handler) isResourceRelevant(resource interface{}, allowedAccountIDs map[string]bool, searchTags []tagemonv1alpha1.TagemonTag) bool {
 
 	type CloudResource interface {
@@ -291,7 +251,6 @@ func (h *Handler) isResourceRelevant(resource interface{}, allowedAccountIDs map
 	return true
 }
 
-// getOrCreateMetric gets or creates a Prometheus gauge for a threshold tag
 func (h *Handler) getOrCreateMetric(tagKey string) *prometheus.GaugeVec {
 	metricName := h.tagToMetricName(tagKey)
 
@@ -299,7 +258,6 @@ func (h *Handler) getOrCreateMetric(tagKey string) *prometheus.GaugeVec {
 		return gauge
 	}
 
-	// Create new gauge
 	gauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: metricName,
@@ -308,7 +266,6 @@ func (h *Handler) getOrCreateMetric(tagKey string) *prometheus.GaugeVec {
 		[]string{"tag_Name", "account_id", "type"},
 	)
 
-	// Register with controller-runtime metrics
 	metrics.Registry.MustRegister(gauge)
 	h.metricsGauges[metricName] = gauge
 
@@ -322,7 +279,6 @@ func (h *Handler) getOrCreateNonCompliantMetric() *prometheus.GaugeVec {
 		return gauge
 	}
 
-	// Create new gauge
 	gauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: metricName,
@@ -331,34 +287,27 @@ func (h *Handler) getOrCreateNonCompliantMetric() *prometheus.GaugeVec {
 		[]string{"resource_type", "account_id"},
 	)
 
-	// Register with controller-runtime metrics
 	metrics.Registry.MustRegister(gauge)
 	h.nonCompliantGauges[metricName] = gauge
 
 	return gauge
 }
 
-// tagToMetricName converts a tag key to a valid Prometheus metric name
 func (h *Handler) tagToMetricName(tagKey string) string {
-	// Convert to lowercase and replace invalid characters with underscores
 	metricName := strings.ToLower(tagKey)
-	// Replace any non-alphanumeric characters (except underscores) with underscores
 	reg := regexp.MustCompile(`[^a-z0-9_]`)
 	metricName = reg.ReplaceAllString(metricName, "_")
-	// Remove consecutive underscores
 	reg = regexp.MustCompile(`_+`)
 	metricName = reg.ReplaceAllString(metricName, "_")
-	// Remove leading/trailing underscores
 	metricName = strings.Trim(metricName, "_")
 
 	return "tagemon_" + metricName
 }
 
 // =============================================================================
-// SCHEDULER - Runs compliance checks on startup and intervals
+// SCHEDULER
 // =============================================================================
 
-// Scheduler implements the Runnable interface to run compliance checks after cache is ready
 type Scheduler struct {
 	mgr      ctrl.Manager
 	handler  *Handler
@@ -366,17 +315,14 @@ type Scheduler struct {
 	interval time.Duration
 }
 
-// Start implements the Runnable interface
 func (s *Scheduler) Start(ctx context.Context) error {
 	logger := log.FromContext(ctx).WithName("tagshandler-scheduler")
 
-	// Wait for cache to sync before running initial check
 	logger.Info("Waiting for cache to sync before running initial compliance check")
 	if !s.mgr.GetCache().WaitForCacheSync(ctx) {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
-	// Run initial compliance check on startup
 	logger.Info("Running initial tag compliance check on startup")
 	report, err := s.handler.CheckCompliance(
 		ctx,
@@ -393,7 +339,6 @@ func (s *Scheduler) Start(ctx context.Context) error {
 			"violatingResources", report.ViolatingResources)
 	}
 
-	// Start interval runner
 	logger.Info("Starting tagshandler with interval", "interval", s.interval)
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
@@ -445,7 +390,6 @@ func (h *Handler) extractResourceName(resourceARN string, tags map[string]string
 	return resourceARN
 }
 
-// extractAccountID extracts AWS account ID from ARN
 func (h *Handler) extractAccountID(resourceARN string) string {
 	// ARN format: arn:partition:service:region:account-id:resource-type/resource-id
 	parts := strings.Split(resourceARN, ":")
@@ -455,7 +399,6 @@ func (h *Handler) extractAccountID(resourceARN string) string {
 	return "unknown"
 }
 
-// processResults processes tag-patrol results, creates metrics for compliant resources and logs non-compliant ones
 func (h *Handler) processResults(ctx context.Context, results []patrol.Result, thresholdTagsMap map[string]map[string]tagemonv1alpha1.ThresholdTagType, allowedAccountIDs map[string]bool, searchTags []tagemonv1alpha1.TagemonTag) *ComplianceReport {
 	logger := log.FromContext(ctx)
 
@@ -465,9 +408,7 @@ func (h *Handler) processResults(ctx context.Context, results []patrol.Result, t
 	compliantResources := 0
 	violatingResources := 0
 
-	// Track non-compliant counts by resource type and account for this scan
 	nonCompliantCounts := make(map[string]map[string]int)
-	// Track all resource types and accounts encountered in this scan
 	allResourceTypes := make(map[string]map[string]bool)
 
 	for _, patrolResult := range results {
@@ -479,9 +420,7 @@ func (h *Handler) processResults(ctx context.Context, results []patrol.Result, t
 		serviceType := patrolResult.Definition.Service
 		thresholdTags := thresholdTagsMap[serviceType]
 
-		// Check if the response is empty - this can indicate wrong resource type
 		if len(patrolResult.Resources) == 0 {
-			// Extract resource type from the patrol result definition
 			resourceType := "unknown"
 			if patrolResult.Definition.ResourceType != "" {
 				resourceType = patrolResult.Definition.ResourceType
@@ -493,7 +432,6 @@ func (h *Handler) processResults(ctx context.Context, results []patrol.Result, t
 				"message", "Empty response for type: "+resourceType+", this can indicate a wrong type has been provided")
 		}
 
-		// Process each resource in the result
 		for _, resource := range patrolResult.Resources {
 			if !h.isResourceRelevant(resource, allowedAccountIDs, searchTags) {
 				// TODO: Uncomment this when we have a way to debug irrelevant resources
@@ -508,7 +446,6 @@ func (h *Handler) processResults(ctx context.Context, results []patrol.Result, t
 			accountID := h.extractAccountID(resource.ID())
 			resourceType := fmt.Sprintf("%s/%s", strings.ToLower(resource.Service()), strings.ToLower(resource.Type()))
 
-			// Track this resource type and account combination
 			if allResourceTypes[resourceType] == nil {
 				allResourceTypes[resourceType] = make(map[string]bool)
 			}
@@ -545,7 +482,6 @@ func (h *Handler) processResults(ctx context.Context, results []patrol.Result, t
 	}
 }
 
-// createMetricsForResource creates Prometheus metrics for compliant resources
 func (h *Handler) createMetricsForResource(resource interface{}, thresholdTags map[string]tagemonv1alpha1.ThresholdTagType, tagName, accountID, resourceType string) {
 	type CloudResource interface {
 		ID() string
@@ -563,7 +499,6 @@ func (h *Handler) createMetricsForResource(resource interface{}, thresholdTags m
 		if tagValue, exists := tags[tagKey]; exists && tagValue != "" {
 			gauge := h.getOrCreateMetric(tagKey)
 
-			// Convert tag value to float64 based on type
 			var value float64
 			var err error
 

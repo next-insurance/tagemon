@@ -4,7 +4,8 @@
 *.dll
 *.so
 *.dylib
-bin/*
+bin/
+testbin/
 Dockerfile.cross
 
 # Test binary, built with `go test -c`
@@ -15,13 +16,23 @@ Dockerfile.cross
 
 # Go workspace file
 go.work
+go.work.sum
 
-# Kubernetes Generated files - skip generated files, except for vendored files
-!vendor/**/zz_generated.*
+# env file
+.env
+
+# Kubernetes Generated files
+config/crd/bases/*.yaml
+
+# Controller config (use controller-config.example.yaml as template)
+config/controller-config.yaml
+
+# Go vendor directory (dependencies)
+vendor/
 
 # editor and IDE paraphernalia
 .idea
-.vscode
 *.swp
 *.swo
 *~
+.vscode

@@ -1,0 +1,47 @@
+Tagemon
+Copyright 2025 Next Insurance
+
+This product includes software developed at
+Next Insurance (https://www.nextinsurance.com/)
+
+===============================================================================
+
+This project uses the following third-party libraries:
+
+-------------------------------------------------------------------------------
+Kubernetes (k8s.io/*)
+Copyright The Kubernetes Authors
+Licensed under the Apache License, Version 2.0
+
+-------------------------------------------------------------------------------
+controller-runtime (sigs.k8s.io/controller-runtime)
+Copyright The Kubernetes Authors
+Licensed under the Apache License, Version 2.0
+
+-------------------------------------------------------------------------------
+Prometheus Go client library (github.com/prometheus/client_golang)
+Copyright The Prometheus Authors
+Licensed under the Apache License, Version 2.0
+
+-------------------------------------------------------------------------------
+AWS SDK for Go v2 (github.com/aws/aws-sdk-go-v2/*)
+Copyright Amazon.com, Inc. or its affiliates
+Licensed under the Apache License, Version 2.0
+
+-------------------------------------------------------------------------------
+tag-patrol (github.com/eliran89c/tag-patrol)
+Copyright Eliran Cohen
+Licensed under the Apache License, Version 2.0
+
+-------------------------------------------------------------------------------
+Viper (github.com/spf13/viper)
+Copyright Steve Francia
+Licensed under the MIT License
+
+-------------------------------------------------------------------------------
+UUID (github.com/google/uuid)
+Copyright Google Inc.
+Licensed under the BSD 3-Clause License
+
+For the complete list of dependencies and their licenses, see go.mod and go.sum
+
