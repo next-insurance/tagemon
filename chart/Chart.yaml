@@ -3,5 +3,4 @@ name: tagemon
 description: A Helm chart to distribute the project tagemon
 type: application
 version: 0.0.4
-appVersion: "0.0.9"
 icon: "https://example.com/icon.png"
