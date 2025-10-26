@@ -3,7 +3,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Tests](https://github.com/next-insurance/tagemon/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/next-insurance/tagemon/actions/workflows/tests.yml)
 [![Helm Release](https://github.com/next-insurance/tagemon/actions/workflows/helm-release.yml/badge.svg?branch=main)](https://github.com/next-insurance/tagemon/actions/workflows/helm-release.yml)
-[![Release](https://github.com/next-insurance/tagemon/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/next-insurance/tagemon/actions/workflows/release.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/next-insurance/tagemon)](https://goreportcard.com/report/github.com/next-insurance/tagemon)
 
 A Kubernetes operator for monitoring AWS CloudWatch metrics with tag-based compliance validation.
