@@ -75,7 +75,19 @@ spec:
                 type: array
               exportedTagsOnMetrics:
                 items:
-                  type: string
+                  description: ExportedTag defines a tag to be exported on metrics
+                  properties:
+                    key:
+                      description: Key is the tag key to export
+                      type: string
+                    required:
+                      default: false
+                      description: Required indicates whether this tag is mandatory
+                        for compliance
+                      type: boolean
+                  required:
+                  - key
+                  type: object
                 type: array
               metrics:
                 description: Metrics is the list of metrics to monitor
