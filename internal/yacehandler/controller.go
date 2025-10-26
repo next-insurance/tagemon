@@ -551,7 +551,9 @@ func (r *Reconciler) generateYACEConfig(tagemon *v1alpha1.Tagemon) (string, erro
 				tagemon.Spec.Type: func() []string {
 					exportedTags := []string{"Name"}
 					if len(tagemon.Spec.ExportedTagsOnMetrics) > 0 {
-						exportedTags = append(exportedTags, tagemon.Spec.ExportedTagsOnMetrics...)
+						for _, exportedTag := range tagemon.Spec.ExportedTagsOnMetrics {
+							exportedTags = append(exportedTags, exportedTag.Key)
+						}
 					}
 					return exportedTags
 				}(),
