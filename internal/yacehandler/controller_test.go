@@ -210,7 +210,11 @@ func TestGenerateYACEConfig(t *testing.T) {
 				Metrics: []v1alpha1.TagemonMetric{
 					{Name: "CPUUtilization"},
 				},
-				ExportedTagsOnMetrics: []string{"Environment", "Team", "Project"},
+				ExportedTagsOnMetrics: []v1alpha1.ExportedTag{
+					{Key: "Environment"},
+					{Key: "Team"},
+					{Key: "Project"},
+				},
 			},
 		}
 
