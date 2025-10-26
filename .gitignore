@@ -23,6 +23,7 @@ go.work.sum
 
 # Kubernetes Generated files
 config/crd/bases/*.yaml
+api/v1alpha1/zz_generated.deepcopy.go
 
 # Controller config (use controller-config.example.yaml as template)
 config/controller-config.yaml

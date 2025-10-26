@@ -146,6 +146,18 @@ func (h *Handler) buildTagPolicy(tagemons []tagemonv1alpha1.Tagemon) (*policyTyp
 
 			mandatoryKeys = append(mandatoryKeys, "Name")
 
+			// Add required exported tags to mandatory keys
+			for _, exportedTag := range tagemon.Spec.ExportedTagsOnMetrics {
+				isRequired := false
+				if exportedTag.Required != nil {
+					isRequired = *exportedTag.Required
+				}
+
+				if isRequired {
+					mandatoryKeys = append(mandatoryKeys, exportedTag.Key)
+				}
+			}
+
 			for _, thresholdTag := range thresholdTags {
 				isRequired := true
 				if thresholdTag.Required != nil {

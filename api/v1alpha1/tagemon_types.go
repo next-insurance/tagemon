@@ -87,7 +87,7 @@ type TagemonSpec struct {
 	SearchTags []TagemonTag `json:"searchTags,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	ExportedTagsOnMetrics []string `json:"exportedTagsOnMetrics,omitempty"`
+	ExportedTagsOnMetrics []ExportedTag `json:"exportedTagsOnMetrics,omitempty"`
 
 	// PodResources defines resource requirements for the YACE pods
 	// +kubebuilder:validation:Optional
@@ -136,6 +136,18 @@ type TagemonTag struct {
 	// Value is the tag value
 	// +kubebuilder:validation:Required
 	Value string `json:"value"`
+}
+
+// ExportedTag defines a tag to be exported on metrics
+type ExportedTag struct {
+	// Key is the tag key to export
+	// +kubebuilder:validation:Required
+	Key string `json:"key"`
+
+	// Required indicates whether this tag is mandatory for compliance
+	// +kubebuilder:default=false
+	// +kubebuilder:validation:Optional
+	Required *bool `json:"required,omitempty"`
 }
 
 // ThresholdTagType represents the type of threshold tag value
