@@ -24,10 +24,7 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Generate Code
+      - name: Running Unit Tests
         run: |
           go mod tidy
-          make generate
-
-      - name: Running Unit Tests
-        run: make test
+          make test
