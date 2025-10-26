@@ -21,85 +21,151 @@ The Tagemon Operator creates and manages YACE deployments based on Tagemon custo
 
 ## Quick Start
 
-### Basic Installation
-```bash
-# Install with required configuration (monitoring enabled)
-# Controller will automatically watch only the 'default' namespace
-helm install tagemon-operator . \
-  --set controller.config.tagsHandler.viewArn="arn:aws:resource-explorer-2:us-west-2:123456789012:view/MainView/abc123" \
-  --set controller.config.tagsHandler.region="us-west-2"
+### Prerequisites
+
+- Kubernetes cluster (1.24+)
+- kubectl configured
+- Helm 3.x
+- AWS credentials with appropriate permissions
+- AWS Resource Explorer configured with a view ARN
+
+### Installation
+
+Create a `values.yaml` file:
+
+```yaml
+controller:
+  serviceAccountName: tagemon-controller
+  config:
+    yaceServiceAccountName: tagemon-yace
+    tagsHandler:
+      viewArn: "arn:aws:resource-explorer-2:us-west-2:ACCOUNT:view/NAME/ID"
+      region: "us-west-2"
+      interval: "60m"
 ```
 
-### Minimal Installation
+Install from OCI registry:
+
 ```bash
-# Install without monitoring features
-helm install tagemon-operator . \
-  --set headlessService.enabled=false \
-  --set serviceMonitor.enabled=false
+helm install tagemon oci://docker.io/nextinsurancedevops/tagemon \
+  --namespace monitoring \
+  --create-namespace \
+  -f values.yaml
+```
+
+Or install from local chart:
+
+```bash
+helm install tagemon ./chart \
+  --namespace monitoring \
+  --create-namespace \
+  -f values.yaml
 ```
 
 ### Installation Verification
 
-The chart includes automatic verification to ensure the controller is running successfully:
-
-1. **Post-Install Hook**: Automatically runs after installation to verify the controller pod is ready
-2. **Post-Upgrade Hook**: Automatically runs after upgrades to verify the controller pod is ready
-3. **Helm Tests**: Provides comprehensive health checks you can run manually
+The chart includes automatic verification:
 
 ```bash
-# The post-install and post-upgrade hooks run automatically, but you can also run manual tests:
-helm test tagemon-operator -n your-namespace
+# Run Helm tests
+helm test tagemon -n monitoring
 
-# Check the status of the verification hooks:
-kubectl get pods -l app.kubernetes.io/component=post-install-hook -n your-namespace
-kubectl get pods -l app.kubernetes.io/component=post-upgrade-hook -n your-namespace
-kubectl logs -l app.kubernetes.io/component=post-install-hook -n your-namespace
-kubectl logs -l app.kubernetes.io/component=post-upgrade-hook -n your-namespace
-
-# Disable verification if needed:
-helm install tagemon-operator . \
-  --set verification.postInstallCheck=false \
-  --set verification.enableTests=false
+# Check verification hooks
+kubectl get pods -n monitoring -l app.kubernetes.io/component=post-install-hook
+kubectl logs -n monitoring -l app.kubernetes.io/component=post-install-hook
 ```
+
+## AWS Prerequisites
+
+### Required AWS Setup
+
+1. **AWS Resource Explorer**: Enable and create a view for tag-based compliance validation
+   - Example ARN: `arn:aws:resource-explorer-2:us-west-2:123456789012:view/MainView/abc123`
+   - [Setup Guide](https://docs.aws.amazon.com/resource-explorer/latest/userguide/getting-started.html)
+
+2. **IAM Permissions**: Configure IAM roles for both service accounts using [IRSA (IAM Roles for Service Accounts)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html)
+
+### Controller Service Account (`tagemon-controller`)
+
+The controller service account needs permissions for tag compliance validation:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": [
+      "resource-explorer-2:Search"
+    ],
+    "Resource": "*"
+  }]
+}
+```
+
+### YACE Service Account (`tagemon-yace`)
+
+The YACE service account needs permissions to assume YACE roles and collect CloudWatch metrics. See [YACE Authentication documentation](https://github.com/prometheus-community/yet-another-cloudwatch-exporter?tab=readme-ov-file#authentication) for details.
+
+**Minimum required permissions:**
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": [
+      "tag:GetResources",
+      "cloudwatch:GetMetricData",
+      "cloudwatch:GetMetricStatistics",
+      "cloudwatch:ListMetrics",
+      "sts:AssumeRole"
+    ],
+    "Resource": "*"
+  }]
+}
+```
+
+**Note:** Additional permissions may be required depending on the AWS services you're monitoring (e.g., `apigateway:GET` for API Gateway, `autoscaling:DescribeAutoScalingGroups` for Auto Scaling). See the [complete YACE permissions list](https://github.com/prometheus-community/yet-another-cloudwatch-exporter?tab=readme-ov-file#authentication).
 
 ## Configuration
 
-### Security Model
+### Service Accounts
 
 The chart creates **two separate service accounts** for enhanced security:
 
-1. **Controller Service Account** (`controller.serviceAccountName`): 
+1. **Controller Service Account** (`tagemon-controller`): 
    - Used by the operator controller
-   - Has cluster-level permissions to manage Tagemon CRDs, ConfigMaps, and Deployments
-   - Requires broader RBAC permissions for its management role
+   - Needs cluster-level permissions to manage Tagemon CRDs, ConfigMaps, and Deployments
+   - Requires `resource-explorer-2:Search` permission for tag compliance validation
 
-2. **YACE Service Account** (`controller.config.yaceServiceAccountName`):
+2. **YACE Service Account** (`tagemon-yace`):
    - Used by YACE pods created by the operator
-   - Has minimal namespace-scoped permissions
-   - Designed for AWS IRSA (IAM Roles for Service Accounts) integration
+   - Needs permissions to assume YACE roles and collect CloudWatch metrics
+   - Should be annotated with IRSA for AWS access
    - Follows principle of least privilege
-
-This separation provides better security isolation and makes it easier to configure AWS IAM roles for YACE pods without over-privileging the controller.
 
 ### Controller Configuration
 
-The controller watches a specific namespace for Tagemon Custom Resources based on the `watchNamespace` configuration. **The Helm chart automatically sets this to the deployment namespace** (`{{ .Release.Namespace }}`), providing namespace isolation without manual configuration.
-
-**Namespace Configuration:**
-- **Helm deployments**: Automatically set to `{{ .Release.Namespace }}`
-- **Direct deployments**: Must configure `watchNamespace` in config file (REQUIRED)
-- **Empty/missing value**: Controller will fail to start
+Key configuration values:
 
 ```yaml
 controller:
-  # Deployment configuration
   replicas: 1
+  
   image:
     repository: nextinsurancedevops/tagemon
-    tag: v1.0.0
+    tag: v0.0.10
   
-  # Log level for the controller (debug, info, error)
-  logLevel: "info"
+  logLevel: "info"  # debug, info, error
+  
+  serviceAccountName: tagemon-controller
+  
+  config:
+    yaceServiceAccountName: tagemon-yace
+    
+    tagsHandler:
+      viewArn: "arn:aws:resource-explorer-2:us-west-2:ACCOUNT:view/NAME/ID"  # REQUIRED
+      region: "us-west-2"  # REQUIRED
+      interval: "60m"
   
   resources:
     limits:
@@ -108,74 +174,34 @@ controller:
     requests:
       cpu: 10m
       memory: 64Mi
-  
-  # Service account for the controller
-  serviceAccountName: tagemon-controller-manager
-  
-  # Runtime configuration
-  config:
-    # Service account for YACE pods created by the operator
-    yaceServiceAccountName: tagemon-yace
-    
-    tagsHandler:
-      viewArn: "arn:aws:resource-explorer-2:us-west-2:123456789012:view/MainView/abc123"  # REQUIRED
-      region: "us-west-2"  # REQUIRED
-      interval: "1m"
 ```
 
-### Custom Resources
+**Note:** The controller automatically watches only the namespace where it's deployed (`{{ .Release.Namespace }}`).
 
-#### Headless Service (for YACE service discovery)
+### Monitoring
+
+Configure Prometheus integration:
+
 ```yaml
+# ServiceMonitor for Prometheus Operator
+controller:
+  serviceMonitor:
+    enabled: true
+    interval: 60s
+    labels:
+      owner: platform-engineering
+
+# ServiceMonitor for YACE pods
+yaceServiceMonitor:
+  enabled: true
+  interval: 60s
+  labels:
+    owner: platform-engineering
+
+# Headless service for YACE pod discovery
 headlessService:
-  enabled: true  # Enable for production
+  enabled: true
   port: 5000
-  targetPort: 5000
-```
-
-#### ServiceMonitor (for Prometheus monitoring)
-```yaml
-serviceMonitor:
-  enabled: true  # Enable if using Prometheus Operator
-  interval: 30s  # Scrape interval
-  labels:
-    prometheus: kube-prometheus  # Match your Prometheus selector
-```
-
-## Usage Examples
-
-### Development Setup
-```yaml
-# values-dev.yaml
-controllerManager:
-  container:
-    image:
-      tag: latest
-
-# Both monitoring features enabled by default
-```
-
-### Production Setup
-```yaml
-# values-prod.yaml
-controllerManager:
-  replicas: 1
-  container:
-    image:
-      tag: "v1.0.0"  # Use specific version
-    resources:
-      limits:
-        cpu: 1000m
-        memory: 256Mi
-
-headlessService:
-  enabled: true
-
-serviceMonitor:
-  enabled: true
-  interval: 30s
-  labels:
-    prometheus: kube-prometheus
 ```
 
 ## Creating Tagemon Resources
@@ -195,73 +221,88 @@ spec:
     - us-west-2
   awsRoles:
     - roleArn: arn:aws:iam::123456789012:role/TagemonRole
-  metrics:
-    - name: CPUUtilization
   statistics:
     - Average
   period: 300
-  length: 3600
+  metrics:
+    - name: CPUUtilization
+    - name: DatabaseConnections
 ```
+
+See the [main README](../README.md#tagemon-crd-specification) for complete CRD field reference.
 
 ## Values Reference
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `controller.replicas` | Number of controller replicas | `1` |
-| `controller.image.repository` | Controller image repository | `amitshlo/amit-tag` |
-| `controller.image.tag` | Controller image tag | `v1.0.0` |
-| `controller.logLevel` | Log level for the controller (debug, info, error) | `info` |
-| `controller.resources` | Controller resource limits/requests | See values.yaml |
-| `controller.serviceAccountName` | Service account name for controller | `tagemon-controller-manager` |
-| `controller.config.yaceServiceAccountName` | Service account name for YACE pods | `tagemon-yace` |
+| `controller.image.repository` | Controller image repository | `nextinsurancedevops/tagemon` |
+| `controller.image.tag` | Controller image tag | `v0.0.10` |
+| `controller.logLevel` | Log level (debug, info, error) | `info` |
+| `controller.serviceAccountName` | Service account for controller | `tagemon-controller-manager` |
+| `controller.config.yaceServiceAccountName` | Service account for YACE pods | `tagemon-yace` |
 | `controller.config.tagsHandler.viewArn` | AWS Resource Explorer view ARN (REQUIRED) | `""` |
-| `controller.config.tagsHandler.region` | AWS region for Resource Explorer (REQUIRED) | `us-east-1` |
+| `controller.config.tagsHandler.region` | AWS region (REQUIRED) | `us-west-2` |
 | `controller.config.tagsHandler.interval` | Tag polling interval | `1m` |
-| `rbac.enable` | Enable RBAC resources | `true` |
-| `crd.enable` | Enable CRD installation | `true` |
-| `crd.keep` | Keep CRDs when uninstalling | `false` |
-| `verification.postInstallCheck` | Enable post-install and post-upgrade verification hooks | `true` |
-| `verification.enableTests` | Enable Helm test resources | `true` |
-| `metrics.enable` | Enable operator metrics service | `true` |
+| `controller.resources` | Controller resource limits/requests | See values.yaml |
+| `controller.serviceMonitor.enabled` | Enable controller ServiceMonitor | `true` |
+| `yaceServiceMonitor.enabled` | Enable YACE ServiceMonitor | `true` |
 | `headlessService.enabled` | Enable headless service for YACE pods | `true` |
-| `serviceMonitor.enabled` | Enable ServiceMonitor for Prometheus | `true` |
+| `rbac.enable` | Enable RBAC resources | `true` |
+| `verification.postInstallCheck` | Enable verification hooks | `true` |
 
 ## Troubleshooting
 
-### Check Operator Status
 ```bash
-kubectl get deployment tagemon-controller-manager
-kubectl logs deployment/tagemon-controller-manager
+# Check operator status
+kubectl get pods -n monitoring -l app.kubernetes.io/name=tagemon
+kubectl logs -n monitoring deployment/tagemon-controller-manager -f
+
+# Check Tagemon resources
+kubectl get tagemon -n monitoring
+kubectl describe tagemon <name> -n monitoring
+
+# Check created YACE deployments
+kubectl get deployments -n monitoring -l app.kubernetes.io/created-by=tagemon
+
+# Check controller metrics
+kubectl port-forward -n monitoring svc/tagemon-controller-manager-metrics 8080:8080
+curl http://localhost:8080/metrics
 ```
 
-### Check Tagemon Resources
-```bash
-kubectl get tagemons
-kubectl describe tagemon <name>
-```
+## Upgrading
 
-### Check Created Resources
 ```bash
-# ConfigMaps created by operator
-kubectl get configmaps -l app.kubernetes.io/created-by=tagemon
+# Upgrade to new version
+helm upgrade tagemon oci://docker.io/nextinsurancedevops/tagemon \
+  --namespace monitoring \
+  -f values.yaml
 
-# Deployments created by operator  
-kubectl get deployments -l app.kubernetes.io/created-by=tagemon
+# Upgrade with new values
+helm upgrade tagemon oci://docker.io/nextinsurancedevops/tagemon \
+  --namespace monitoring \
+  --set controller.image.tag=v0.0.11 \
+  --reuse-values
 ```
 
 ## Uninstalling
 
 ```bash
-# Remove the Helm release (keeps CRDs by default)
-helm uninstall tagemon-operator
+# Remove the Helm release (CRDs preserved by default)
+helm uninstall tagemon -n monitoring
 
-# To also remove CRDs (this will delete all Tagemon resources!)
+# To also remove CRDs (WARNING: Deletes all Tagemon resources!)
 kubectl delete crd tagemons.tagemon.io
+
+# Clean up remaining resources
+kubectl delete configmaps -n monitoring -l app.kubernetes.io/created-by=tagemon
+kubectl delete deployments -n monitoring -l app.kubernetes.io/created-by=tagemon
 ```
 
-## Support
+**⚠️ Important:** By default, CRDs are not deleted to prevent accidental data loss.
 
-For issues and questions:
-- Check the operator logs
-- Verify RBAC permissions
-- Ensure AWS credentials are properly configured for the operator
+## Additional Documentation
+
+- [Complete CRD Field Reference](../README.md#tagemon-crd-specification)
+- [Development Guide](../README.md#development)
+- [YACE Documentation](https://github.com/prometheus-community/yet-another-cloudwatch-exporter)
