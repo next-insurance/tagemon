@@ -73,6 +73,12 @@ spec:
                   type: object
                 minItems: 1
                 type: array
+              dimensionNameRequirements:
+                description: DimensionNameRequirements filters metrics to only those
+                  with the specified dimensions
+                items:
+                  type: string
+                type: array
               exportedTagsOnMetrics:
                 items:
                   description: ExportedTag defines a tag to be exported on metrics
