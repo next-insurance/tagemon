@@ -89,6 +89,10 @@ type TagemonSpec struct {
 	// +kubebuilder:validation:Optional
 	ExportedTagsOnMetrics []ExportedTag `json:"exportedTagsOnMetrics,omitempty"`
 
+	// DimensionNameRequirements filters metrics to only those with the specified dimensions
+	// +kubebuilder:validation:Optional
+	DimensionNameRequirements []string `json:"dimensionNameRequirements,omitempty"`
+
 	// PodResources defines resource requirements for the YACE pods
 	// +kubebuilder:validation:Optional
 	PodResources *PodResources `json:"podResources,omitempty"`
