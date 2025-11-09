@@ -3,7 +3,7 @@ controller:
   
   image:
     repository: nextinsurancedevops/tagemon
-    tag: v0.0.10
+    tag: v0.0.11
   
   logLevel: "info"
   
