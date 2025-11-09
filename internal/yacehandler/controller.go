@@ -585,6 +585,7 @@ func (r *Reconciler) generateYACEConfig(tagemon *v1alpha1.Tagemon) (string, erro
 						}
 						return tags
 					}(),
+					"dimensionNameRequirements": tagemon.Spec.DimensionNameRequirements,
 					"metrics": func() []map[string]interface{} {
 						metrics := make([]map[string]interface{}, len(tagemon.Spec.Metrics))
 						for i, metric := range tagemon.Spec.Metrics {
