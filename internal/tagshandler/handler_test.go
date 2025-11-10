@@ -567,6 +567,82 @@ func TestExtractSearchTagsFilters(t *testing.T) {
 	}
 }
 
+func TestExtractExportedTagsOnMetrics(t *testing.T) {
+	handler := &Handler{}
+	trueVal := true
+	falseVal := false
+
+	tests := []struct {
+		name           string
+		tagemons       []tagemonv1alpha1.Tagemon
+		expectedLength int
+		description    string
+	}{
+		{
+			name: "single tagemon with exported tags",
+			tagemons: []tagemonv1alpha1.Tagemon{
+				{
+					Spec: tagemonv1alpha1.TagemonSpec{
+						ExportedTagsOnMetrics: []tagemonv1alpha1.ExportedTag{
+							{Key: "Environment", Required: &trueVal},
+							{Key: "Application", Required: &falseVal},
+						},
+					},
+				},
+			},
+			expectedLength: 2,
+			description:    "should extract all exported tags from a single tagemon",
+		},
+		{
+			name: "multiple tagemons with exported tags",
+			tagemons: []tagemonv1alpha1.Tagemon{
+				{
+					Spec: tagemonv1alpha1.TagemonSpec{
+						ExportedTagsOnMetrics: []tagemonv1alpha1.ExportedTag{
+							{Key: "Environment", Required: &trueVal},
+						},
+					},
+				},
+				{
+					Spec: tagemonv1alpha1.TagemonSpec{
+						ExportedTagsOnMetrics: []tagemonv1alpha1.ExportedTag{
+							{Key: "Application", Required: &falseVal},
+							{Key: "Owner", Required: &trueVal},
+						},
+					},
+				},
+			},
+			expectedLength: 3,
+			description:    "should merge exported tags from multiple tagemons",
+		},
+		{
+			name:           "empty tagemon list",
+			tagemons:       []tagemonv1alpha1.Tagemon{},
+			expectedLength: 0,
+			description:    "should return empty slice for empty tagemon list",
+		},
+		{
+			name: "tagemon with no exported tags",
+			tagemons: []tagemonv1alpha1.Tagemon{
+				{
+					Spec: tagemonv1alpha1.TagemonSpec{
+						ExportedTagsOnMetrics: []tagemonv1alpha1.ExportedTag{},
+					},
+				},
+			},
+			expectedLength: 0,
+			description:    "should return empty slice when no exported tags defined",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := handler.extractExportedTagsOnMetrics(tt.tagemons)
+			assert.Len(t, result, tt.expectedLength, tt.description)
+		})
+	}
+}
+
 func TestIsResourceRelevant(t *testing.T) {
 	handler := &Handler{}
 

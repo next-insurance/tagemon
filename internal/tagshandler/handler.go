@@ -69,6 +69,7 @@ func (h *Handler) CheckCompliance(ctx context.Context, namespace string, viewARN
 	policy, thresholdTagsMap := h.buildTagPolicy(tagemonList.Items)
 	allowedAccountIDs := h.extractAllowedAccountIDs(tagemonList.Items)
 	searchTagsFilters := h.extractSearchTagsFilters(tagemonList.Items)
+	exportedTagsOnMetrics := h.extractExportedTagsOnMetrics(tagemonList.Items)
 
 	if len(allowedAccountIDs) > 0 {
 		accountList := make([]string, 0, len(allowedAccountIDs))
@@ -96,7 +97,7 @@ func (h *Handler) CheckCompliance(ctx context.Context, namespace string, viewARN
 		return nil, fmt.Errorf("failed to execute tag patrol: %w", err)
 	}
 
-	report := h.processResults(ctx, results, thresholdTagsMap, allowedAccountIDs, searchTagsFilters)
+	report := h.processResults(ctx, results, thresholdTagsMap, allowedAccountIDs, searchTagsFilters, exportedTagsOnMetrics)
 
 	logger.Info("Tag compliance check completed",
 		"totalResources", report.TotalResources,
@@ -232,6 +233,16 @@ func (h *Handler) extractSearchTagsFilters(tagemons []tagemonv1alpha1.Tagemon) [
 	return searchTags
 }
 
+func (h *Handler) extractExportedTagsOnMetrics(tagemons []tagemonv1alpha1.Tagemon) []tagemonv1alpha1.ExportedTag {
+	exportedTags := make([]tagemonv1alpha1.ExportedTag, 0)
+
+	for _, tagemon := range tagemons {
+		exportedTags = append(exportedTags, tagemon.Spec.ExportedTagsOnMetrics...)
+	}
+
+	return exportedTags
+}
+
 func (h *Handler) isResourceRelevant(resource interface{}, allowedAccountIDs map[string]bool, searchTags []tagemonv1alpha1.TagemonTag) bool {
 
 	type CloudResource interface {
@@ -262,11 +273,25 @@ func (h *Handler) isResourceRelevant(resource interface{}, allowedAccountIDs map
 	return true
 }
 
-func (h *Handler) getOrCreateMetric(tagKey string) *prometheus.GaugeVec {
+func (h *Handler) getOrCreateMetric(tagKey string, exportedTags []tagemonv1alpha1.ExportedTag) *prometheus.GaugeVec {
 	metricName := h.tagToMetricName(tagKey)
 
-	if gauge, exists := h.metricsGauges[metricName]; exists {
+	metricKey := metricName
+	if len(exportedTags) > 0 {
+		exportedKeys := make([]string, 0, len(exportedTags))
+		for _, tag := range exportedTags {
+			exportedKeys = append(exportedKeys, tag.Key)
+		}
+		metricKey = fmt.Sprintf("%s_%s", metricName, strings.Join(exportedKeys, "_"))
+	}
+
+	if gauge, exists := h.metricsGauges[metricKey]; exists {
 		return gauge
+	}
+
+	labelNames := []string{"tag_Name", "account_id", "type"}
+	for _, exportedTag := range exportedTags {
+		labelNames = append(labelNames, "tag_"+exportedTag.Key)
 	}
 
 	gauge := prometheus.NewGaugeVec(
@@ -274,11 +299,11 @@ func (h *Handler) getOrCreateMetric(tagKey string) *prometheus.GaugeVec {
 			Name: metricName,
 			Help: fmt.Sprintf("Tagemon threshold tag value for %s", tagKey),
 		},
-		[]string{"tag_Name", "account_id", "type"},
+		labelNames,
 	)
 
 	metrics.Registry.MustRegister(gauge)
-	h.metricsGauges[metricName] = gauge
+	h.metricsGauges[metricKey] = gauge
 
 	return gauge
 }
@@ -410,7 +435,7 @@ func (h *Handler) extractAccountID(resourceARN string) string {
 	return "unknown"
 }
 
-func (h *Handler) processResults(ctx context.Context, results []patrol.Result, thresholdTagsMap map[string]map[string]tagemonv1alpha1.ThresholdTagType, allowedAccountIDs map[string]bool, searchTags []tagemonv1alpha1.TagemonTag) *ComplianceReport {
+func (h *Handler) processResults(ctx context.Context, results []patrol.Result, thresholdTagsMap map[string]map[string]tagemonv1alpha1.ThresholdTagType, allowedAccountIDs map[string]bool, searchTags []tagemonv1alpha1.TagemonTag, exportedTags []tagemonv1alpha1.ExportedTag) *ComplianceReport {
 	logger := log.FromContext(ctx)
 
 	h.resetAllThresholdMetrics()
@@ -464,7 +489,7 @@ func (h *Handler) processResults(ctx context.Context, results []patrol.Result, t
 
 			if resource.IsCompliant() {
 				compliantResources++
-				h.createMetricsForResource(resource, thresholdTags, tagName, accountID, resourceType)
+				h.createMetricsForResource(resource, thresholdTags, tagName, accountID, resourceType, exportedTags)
 			} else {
 				violatingResources++
 				h.handleNonCompliantResource(resource, tagName, accountID, resourceType)
@@ -493,7 +518,7 @@ func (h *Handler) processResults(ctx context.Context, results []patrol.Result, t
 	}
 }
 
-func (h *Handler) createMetricsForResource(resource interface{}, thresholdTags map[string]tagemonv1alpha1.ThresholdTagType, tagName, accountID, resourceType string) {
+func (h *Handler) createMetricsForResource(resource interface{}, thresholdTags map[string]tagemonv1alpha1.ThresholdTagType, tagName, accountID, resourceType string, exportedTags []tagemonv1alpha1.ExportedTag) {
 	type CloudResource interface {
 		ID() string
 		Tags() map[string]string
@@ -506,9 +531,18 @@ func (h *Handler) createMetricsForResource(resource interface{}, thresholdTags m
 
 	tags := r.Tags()
 
+	exportedTagValues := make([]string, 0, len(exportedTags))
+	for _, exportedTag := range exportedTags {
+		tagValue := ""
+		if val, exists := tags[exportedTag.Key]; exists {
+			tagValue = val
+		}
+		exportedTagValues = append(exportedTagValues, tagValue)
+	}
+
 	for tagKey, tagType := range thresholdTags {
 		if tagValue, exists := tags[tagKey]; exists && tagValue != "" {
-			gauge := h.getOrCreateMetric(tagKey)
+			gauge := h.getOrCreateMetric(tagKey, exportedTags)
 
 			var value float64
 			var err error
@@ -525,7 +559,9 @@ func (h *Handler) createMetricsForResource(resource interface{}, thresholdTags m
 			}
 
 			if err == nil {
-				gauge.WithLabelValues(tagName, accountID, resourceType).Set(value)
+				labelValues := []string{tagName, accountID, resourceType}
+				labelValues = append(labelValues, exportedTagValues...)
+				gauge.WithLabelValues(labelValues...).Set(value)
 			}
 		}
 	}
