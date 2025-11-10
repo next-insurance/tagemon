@@ -231,6 +231,11 @@ func (in *TagemonSpec) DeepCopyInto(out *TagemonSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.DimensionNameRequirements != nil {
+		in, out := &in.DimensionNameRequirements, &out.DimensionNameRequirements
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.PodResources != nil {
 		in, out := &in.PodResources, &out.PodResources
 		*out = new(PodResources)
