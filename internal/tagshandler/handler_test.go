@@ -1,6 +1,7 @@
 package tagshandler
 
 import (
+	"strings"
 	"testing"
 
 	tagemonv1alpha1 "github.com/next-insurance/tagemon/api/v1alpha1"
@@ -576,6 +577,7 @@ func TestExtractExportedTagsOnMetrics(t *testing.T) {
 		name           string
 		tagemons       []tagemonv1alpha1.Tagemon
 		expectedLength int
+		expectedKeys   []string
 		description    string
 	}{
 		{
@@ -591,6 +593,7 @@ func TestExtractExportedTagsOnMetrics(t *testing.T) {
 				},
 			},
 			expectedLength: 2,
+			expectedKeys:   []string{"Environment", "Application"},
 			description:    "should extract all exported tags from a single tagemon",
 		},
 		{
@@ -613,12 +616,14 @@ func TestExtractExportedTagsOnMetrics(t *testing.T) {
 				},
 			},
 			expectedLength: 3,
+			expectedKeys:   []string{"Environment", "Application", "Owner"},
 			description:    "should merge exported tags from multiple tagemons",
 		},
 		{
 			name:           "empty tagemon list",
 			tagemons:       []tagemonv1alpha1.Tagemon{},
 			expectedLength: 0,
+			expectedKeys:   []string{},
 			description:    "should return empty slice for empty tagemon list",
 		},
 		{
@@ -631,7 +636,65 @@ func TestExtractExportedTagsOnMetrics(t *testing.T) {
 				},
 			},
 			expectedLength: 0,
+			expectedKeys:   []string{},
 			description:    "should return empty slice when no exported tags defined",
+		},
+		{
+			name: "multiple tagemons with duplicate exported tag keys - should deduplicate",
+			tagemons: []tagemonv1alpha1.Tagemon{
+				{
+					Spec: tagemonv1alpha1.TagemonSpec{
+						ExportedTagsOnMetrics: []tagemonv1alpha1.ExportedTag{
+							{Key: "mimir_tenants", Required: &trueVal},
+							{Key: "Environment", Required: &trueVal},
+						},
+					},
+				},
+				{
+					Spec: tagemonv1alpha1.TagemonSpec{
+						ExportedTagsOnMetrics: []tagemonv1alpha1.ExportedTag{
+							{Key: "mimir_tenants", Required: &falseVal}, // Duplicate key
+							{Key: "Application", Required: &trueVal},
+						},
+					},
+				},
+			},
+			expectedLength: 3, // Should only have 3 unique keys, not 4
+			expectedKeys:   []string{"mimir_tenants", "Environment", "Application"},
+			description:    "should deduplicate exported tags when same key appears in multiple CRs",
+		},
+		{
+			name: "multiple tagemons with multiple duplicate keys",
+			tagemons: []tagemonv1alpha1.Tagemon{
+				{
+					Spec: tagemonv1alpha1.TagemonSpec{
+						ExportedTagsOnMetrics: []tagemonv1alpha1.ExportedTag{
+							{Key: "Team", Required: &trueVal},
+							{Key: "Environment", Required: &trueVal},
+						},
+					},
+				},
+				{
+					Spec: tagemonv1alpha1.TagemonSpec{
+						ExportedTagsOnMetrics: []tagemonv1alpha1.ExportedTag{
+							{Key: "Team", Required: &falseVal},        // Duplicate
+							{Key: "Environment", Required: &falseVal}, // Duplicate
+							{Key: "Owner", Required: &trueVal},
+						},
+					},
+				},
+				{
+					Spec: tagemonv1alpha1.TagemonSpec{
+						ExportedTagsOnMetrics: []tagemonv1alpha1.ExportedTag{
+							{Key: "Team", Required: &trueVal}, // Duplicate again
+							{Key: "CostCenter", Required: &trueVal},
+						},
+					},
+				},
+			},
+			expectedLength: 4, // Team, Environment, Owner, CostCenter (all unique)
+			expectedKeys:   []string{"Team", "Environment", "Owner", "CostCenter"},
+			description:    "should deduplicate multiple duplicate keys across multiple CRs",
 		},
 	}
 
@@ -639,8 +702,121 @@ func TestExtractExportedTagsOnMetrics(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := handler.extractExportedTagsOnMetrics(tt.tagemons)
 			assert.Len(t, result, tt.expectedLength, tt.description)
+
+			if len(tt.expectedKeys) > 0 {
+				resultKeys := make(map[string]bool)
+				for _, tag := range result {
+					resultKeys[tag.Key] = true
+				}
+
+				for _, expectedKey := range tt.expectedKeys {
+					assert.True(t, resultKeys[expectedKey], "Expected key %s to be present", expectedKey)
+				}
+			}
 		})
 	}
+}
+
+func TestGetOrCreateMetric(t *testing.T) {
+	handler := &Handler{
+		metricsGauges: make(map[string]*prometheus.GaugeVec),
+	}
+
+	tests := []struct {
+		name         string
+		tagKey       string
+		exportedTags []tagemonv1alpha1.ExportedTag
+		description  string
+	}{
+		{
+			name:         "create metric without exported tags",
+			tagKey:       "storage_drop_mb_threshold",
+			exportedTags: []tagemonv1alpha1.ExportedTag{},
+			description:  "should create metric with basic labels only",
+		},
+		{
+			name:   "create metric with single exported tag",
+			tagKey: "storage_drop_mb_threshold",
+			exportedTags: []tagemonv1alpha1.ExportedTag{
+				{Key: "Environment"},
+			},
+			description: "should create metric with additional exported tag label",
+		},
+		{
+			name:   "create metric with multiple exported tags",
+			tagKey: "retention_days",
+			exportedTags: []tagemonv1alpha1.ExportedTag{
+				{Key: "Environment"},
+				{Key: "Team"},
+			},
+			description: "should create metric with multiple exported tag labels",
+		},
+		{
+			name:         "retrieve existing metric",
+			tagKey:       "storage_drop_mb_threshold",
+			exportedTags: []tagemonv1alpha1.ExportedTag{},
+			description:  "should return existing metric without creating a new one",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gauge := handler.getOrCreateMetric(tt.tagKey, tt.exportedTags)
+
+			if tt.name == "retrieve existing metric" {
+				assert.NotNil(t, gauge, tt.description)
+
+				metricKey := handler.tagToMetricName(tt.tagKey)
+				assert.Equal(t, handler.metricsGauges[metricKey], gauge)
+			} else {
+				if gauge != nil {
+					metricName := handler.tagToMetricName(tt.tagKey)
+					metricKey := metricName
+					if len(tt.exportedTags) > 0 {
+						exportedKeys := make([]string, 0, len(tt.exportedTags))
+						for _, tag := range tt.exportedTags {
+							exportedKeys = append(exportedKeys, tag.Key)
+						}
+						metricKey = metricName + "_" + strings.Join(exportedKeys, "_")
+					}
+					assert.NotNil(t, handler.metricsGauges[metricKey])
+				}
+			}
+		})
+	}
+}
+
+func TestCreateMetricsForResourceWithNilGauge(t *testing.T) {
+	handler := &Handler{
+		metricsGauges: make(map[string]*prometheus.GaugeVec),
+	}
+
+	thresholdTags := map[string]tagemonv1alpha1.ThresholdTagType{
+		"threshold_metric": tagemonv1alpha1.ThresholdTagTypeInt,
+	}
+
+	resource := &mockResource{
+		id: "arn:aws:s3:us-west-2:123456789012:bucket/test-bucket",
+		tags: map[string]string{
+			"Name":             "test-bucket",
+			"threshold_metric": "100",
+		},
+		service:      "s3",
+		resourceType: "bucket",
+	}
+
+	exportedTags := []tagemonv1alpha1.ExportedTag{}
+
+	handler.createMetricsForResource(
+		resource,
+		thresholdTags,
+		"test-bucket",
+		"123456789012",
+		"s3/bucket",
+		exportedTags,
+	)
+
+	assert.NotNil(t, handler)
 }
 
 func TestIsResourceRelevant(t *testing.T) {
