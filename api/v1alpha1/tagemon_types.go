@@ -46,10 +46,10 @@ type TagemonSpec struct {
 	// +kubebuilder:validation:Pattern=`^AWS\/[A-Z0-9]+$`
 	Type string `json:"type"`
 
-	// ResourceExplorerType optionally specifies the AWS Resource Explorer service type
+	// ResourceExplorerService optionally specifies the AWS Resource Explorer service type
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Pattern=`^[a-z0-9]+$`
-	ResourceExplorerType *string `json:"resourceExplorerType,omitempty"`
+	ResourceExplorerService *string `json:"resourceExplorerService,omitempty"`
 
 	// Regions is the list of AWS regions to monitor
 	// +kubebuilder:validation:Required
