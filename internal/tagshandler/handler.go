@@ -120,6 +120,9 @@ func (h *Handler) buildTagPolicy(tagemons []tagemonv1alpha1.Tagemon) (*policyTyp
 
 	for _, tagemon := range tagemons {
 		serviceType := strings.ToLower(strings.TrimPrefix(tagemon.Spec.Type, "AWS/"))
+		if tagemon.Spec.ResourceExplorerType != nil && *tagemon.Spec.ResourceExplorerType != "" {
+			serviceType = *tagemon.Spec.ResourceExplorerType
+		}
 
 		if thresholdTagsMap[serviceType] == nil {
 			thresholdTagsMap[serviceType] = make(map[string]tagemonv1alpha1.ThresholdTagType)
