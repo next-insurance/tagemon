@@ -59,12 +59,12 @@ func TestBuildTagPolicy(t *testing.T) {
 			description:         "should derive service type from Type field",
 		},
 		{
-			name: "tagemon with ResourceExplorerType override",
+			name: "tagemon with ResourceExplorerService override",
 			tagemons: []tagemonv1alpha1.Tagemon{
 				{
 					Spec: tagemonv1alpha1.TagemonSpec{
-						Type:                 "AWS/VPN",
-						ResourceExplorerType: stringPtr("ec2"),
+						Type:                    "AWS/VPN",
+						ResourceExplorerService: stringPtr("ec2"),
 						Metrics: []tagemonv1alpha1.TagemonMetric{
 							{
 								Name: "TunnelState",
@@ -81,7 +81,7 @@ func TestBuildTagPolicy(t *testing.T) {
 				},
 			},
 			expectedServiceType: "ec2",
-			description:         "should use ResourceExplorerType override instead of deriving from Type",
+			description:         "should use ResourceExplorerService override instead of deriving from Type",
 		},
 		{
 			name: "multiple tagemons with different services",
