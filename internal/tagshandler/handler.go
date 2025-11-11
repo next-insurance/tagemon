@@ -234,10 +234,19 @@ func (h *Handler) extractSearchTagsFilters(tagemons []tagemonv1alpha1.Tagemon) [
 }
 
 func (h *Handler) extractExportedTagsOnMetrics(tagemons []tagemonv1alpha1.Tagemon) []tagemonv1alpha1.ExportedTag {
-	exportedTags := make([]tagemonv1alpha1.ExportedTag, 0)
+	uniqueTagsMap := make(map[string]tagemonv1alpha1.ExportedTag)
 
 	for _, tagemon := range tagemons {
-		exportedTags = append(exportedTags, tagemon.Spec.ExportedTagsOnMetrics...)
+		for _, exportedTag := range tagemon.Spec.ExportedTagsOnMetrics {
+			if _, exists := uniqueTagsMap[exportedTag.Key]; !exists {
+				uniqueTagsMap[exportedTag.Key] = exportedTag
+			}
+		}
+	}
+
+	exportedTags := make([]tagemonv1alpha1.ExportedTag, 0, len(uniqueTagsMap))
+	for _, tag := range uniqueTagsMap {
+		exportedTags = append(exportedTags, tag)
 	}
 
 	return exportedTags
@@ -274,6 +283,7 @@ func (h *Handler) isResourceRelevant(resource interface{}, allowedAccountIDs map
 }
 
 func (h *Handler) getOrCreateMetric(tagKey string, exportedTags []tagemonv1alpha1.ExportedTag) *prometheus.GaugeVec {
+	logger := log.FromContext(context.Background())
 	metricName := h.tagToMetricName(tagKey)
 
 	metricKey := metricName
@@ -302,7 +312,15 @@ func (h *Handler) getOrCreateMetric(tagKey string, exportedTags []tagemonv1alpha
 		labelNames,
 	)
 
-	metrics.Registry.MustRegister(gauge)
+	if err := metrics.Registry.Register(gauge); err != nil {
+		logger.Error(err, "Failed to register metric",
+			"metricName", metricName,
+			"metricKey", metricKey,
+			"labelNames", labelNames,
+			"tagKey", tagKey)
+		return nil
+	}
+
 	h.metricsGauges[metricKey] = gauge
 
 	return gauge
@@ -543,6 +561,10 @@ func (h *Handler) createMetricsForResource(resource interface{}, thresholdTags m
 	for tagKey, tagType := range thresholdTags {
 		if tagValue, exists := tags[tagKey]; exists && tagValue != "" {
 			gauge := h.getOrCreateMetric(tagKey, exportedTags)
+
+			if gauge == nil {
+				continue
+			}
 
 			var value float64
 			var err error
