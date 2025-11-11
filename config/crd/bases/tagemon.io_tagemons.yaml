@@ -238,6 +238,11 @@ spec:
                   type: string
                 minItems: 1
                 type: array
+              resourceExplorerType:
+                description: ResourceExplorerType optionally specifies the AWS Resource
+                  Explorer service type
+                pattern: ^[a-z0-9]+$
+                type: string
               scrapingInterval:
                 description: ScrapingInterval is the global scraping interval in seconds
                   for all metrics

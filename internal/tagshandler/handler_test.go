@@ -15,12 +15,19 @@ const (
 	testNonCompliantMetricName  = "tagemon_resources_non_compliant_count"
 )
 
+// Helper function to create string pointers for tests
+func stringPtr(s string) *string {
+	return &s
+}
+
 func TestBuildTagPolicy(t *testing.T) {
 	handler := &Handler{}
 
 	tests := []struct {
-		name     string
-		tagemons []tagemonv1alpha1.Tagemon
+		name                string
+		tagemons            []tagemonv1alpha1.Tagemon
+		expectedServiceType string
+		description         string
 	}{
 		{
 			name: "single tagemon with threshold tags",
@@ -48,6 +55,33 @@ func TestBuildTagPolicy(t *testing.T) {
 					},
 				},
 			},
+			expectedServiceType: "s3",
+			description:         "should derive service type from Type field",
+		},
+		{
+			name: "tagemon with ResourceExplorerType override",
+			tagemons: []tagemonv1alpha1.Tagemon{
+				{
+					Spec: tagemonv1alpha1.TagemonSpec{
+						Type:                 "AWS/VPN",
+						ResourceExplorerType: stringPtr("ec2"),
+						Metrics: []tagemonv1alpha1.TagemonMetric{
+							{
+								Name: "TunnelState",
+								ThresholdTags: []tagemonv1alpha1.ThresholdTag{
+									{
+										Type:         tagemonv1alpha1.ThresholdTagTypeInt,
+										Key:          "vpn-threshold",
+										ResourceType: "vpn-connection",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedServiceType: "ec2",
+			description:         "should use ResourceExplorerType override instead of deriving from Type",
 		},
 		{
 			name: "multiple tagemons with different services",
@@ -87,10 +121,14 @@ func TestBuildTagPolicy(t *testing.T) {
 					},
 				},
 			},
+			expectedServiceType: "",
+			description:         "should handle multiple service types",
 		},
 		{
-			name:     "empty tagemon list",
-			tagemons: []tagemonv1alpha1.Tagemon{},
+			name:                "empty tagemon list",
+			tagemons:            []tagemonv1alpha1.Tagemon{},
+			expectedServiceType: "",
+			description:         "should handle empty tagemon list",
 		},
 		{
 			name: "tagemon with non-existent resource type",
@@ -118,14 +156,22 @@ func TestBuildTagPolicy(t *testing.T) {
 					},
 				},
 			},
+			expectedServiceType: "ec2",
+			description:         "should handle non-existent resource types",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			policy, thresholdMap := handler.buildTagPolicy(tt.tagemons)
-			assert.NotNil(t, policy)
-			assert.NotNil(t, thresholdMap)
+			assert.NotNil(t, policy, tt.description)
+			assert.NotNil(t, thresholdMap, tt.description)
+
+			// Verify the expected service type is present in thresholdMap (if specified)
+			if tt.expectedServiceType != "" {
+				assert.Contains(t, thresholdMap, tt.expectedServiceType,
+					"Expected service type %s to be in thresholdMap", tt.expectedServiceType)
+			}
 
 			// Verify policy structure for non-empty cases
 			hasThresholdTags := false
