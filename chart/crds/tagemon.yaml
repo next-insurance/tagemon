@@ -282,7 +282,7 @@ spec:
               type:
                 description: Type is the AWS service type (e.g., AWS/RDS, AWS/Backup,
                   AWS/S3)
-                pattern: ^AWS\/[A-Z0-9]+$
+                pattern: ^AWS\/[A-Za-z0-9]+$
                 type: string
             required:
             - awsRoles
