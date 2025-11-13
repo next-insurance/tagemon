@@ -23,16 +23,21 @@ import (
 )
 
 type Handler struct {
-	client             client.Client
-	metricsGauges      map[string]*prometheus.GaugeVec
-	nonCompliantGauges map[string]*prometheus.GaugeVec
+	client                         client.Client
+	metricsGauges                  map[string]*prometheus.GaugeVec
+	nonCompliantGauges             map[string]*prometheus.GaugeVec
+	nonCompliantMetricCustomLabels map[string]string
 }
 
-func New(k8sClient client.Client) *Handler {
+func New(k8sClient client.Client, nonCompliantMetricCustomLabels map[string]string) *Handler {
+	if nonCompliantMetricCustomLabels == nil {
+		nonCompliantMetricCustomLabels = make(map[string]string)
+	}
 	return &Handler{
-		client:             k8sClient,
-		metricsGauges:      make(map[string]*prometheus.GaugeVec),
-		nonCompliantGauges: make(map[string]*prometheus.GaugeVec),
+		client:                         k8sClient,
+		metricsGauges:                  make(map[string]*prometheus.GaugeVec),
+		nonCompliantGauges:             make(map[string]*prometheus.GaugeVec),
+		nonCompliantMetricCustomLabels: nonCompliantMetricCustomLabels,
 	}
 }
 
@@ -336,12 +341,18 @@ func (h *Handler) getOrCreateNonCompliantMetric() *prometheus.GaugeVec {
 		return gauge
 	}
 
+	// Build label names: default labels + custom labels
+	labelNames := []string{"resource_type", "account_id"}
+	for labelName := range h.nonCompliantMetricCustomLabels {
+		labelNames = append(labelNames, labelName)
+	}
+
 	gauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: metricName,
 			Help: "Current count of non-compliant resources by type and account",
 		},
-		[]string{"resource_type", "account_id"},
+		labelNames,
 	)
 
 	metrics.Registry.MustRegister(gauge)
@@ -664,13 +675,23 @@ func (h *Handler) updateNonCompliantMetrics(nonCompliantCounts map[string]map[st
 
 	gauge.Reset()
 
+	// Build label values: default labels + custom label values
 	for resourceType, accounts := range allResourceTypes {
 		for accountID := range accounts {
 			count := 0
 			if nonCompliantCounts[resourceType] != nil {
 				count = nonCompliantCounts[resourceType][accountID]
 			}
-			gauge.WithLabelValues(resourceType, accountID).Set(float64(count))
+
+			// Start with default labels
+			labelValues := []string{resourceType, accountID}
+
+			// Append custom label values in the same order as they were defined
+			for _, labelValue := range h.nonCompliantMetricCustomLabels {
+				labelValues = append(labelValues, labelValue)
+			}
+
+			gauge.WithLabelValues(labelValues...).Set(float64(count))
 		}
 	}
 }

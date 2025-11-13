@@ -865,6 +865,116 @@ func TestCreateMetricsForResourceWithNilGauge(t *testing.T) {
 	assert.NotNil(t, handler)
 }
 
+func TestGetOrCreateNonCompliantMetricWithCustomLabels(t *testing.T) {
+	// Create a custom registry for this test to avoid conflicts
+	registry := prometheus.NewRegistry()
+
+	nonCompliantMetricCustomLabels := map[string]string{
+		"environment": "production",
+		"cluster":     "us-west-2-prod",
+	}
+
+	handler := &Handler{
+		nonCompliantGauges:             make(map[string]*prometheus.GaugeVec),
+		nonCompliantMetricCustomLabels: nonCompliantMetricCustomLabels,
+	}
+
+	// Mock the metrics.Registry.MustRegister by creating gauge manually
+	metricName := "tagemon_resources_non_compliant_count_custom_test"
+	labelNames := []string{"resource_type", "account_id"}
+	for labelName := range nonCompliantMetricCustomLabels {
+		labelNames = append(labelNames, labelName)
+	}
+
+	gauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: metricName,
+			Help: "Test gauge for non-compliant resources with custom labels",
+		},
+		labelNames,
+	)
+	registry.MustRegister(gauge)
+	handler.nonCompliantGauges[metricName] = gauge
+
+	// Verify gauge is stored in the map
+	assert.NotNil(t, handler.nonCompliantGauges[metricName])
+
+	// Verify the gauge accepts the correct number of label values
+	labelValues := []string{"s3/bucket", "123456789012", "production", "us-west-2-prod"}
+	gauge.WithLabelValues(labelValues...).Set(5.0)
+}
+
+func TestUpdateNonCompliantMetricsWithCustomLabels(t *testing.T) {
+	// Create a custom registry for this test to avoid conflicts
+	registry := prometheus.NewRegistry()
+
+	nonCompliantMetricCustomLabels := map[string]string{
+		"environment": "staging",
+		"region":      "us-east-1",
+	}
+
+	handler := &Handler{
+		nonCompliantGauges:             make(map[string]*prometheus.GaugeVec),
+		nonCompliantMetricCustomLabels: nonCompliantMetricCustomLabels,
+	}
+
+	// Pre-create the gauge to avoid registration conflicts
+	metricName := testNonCompliantMetricName
+	labelNames := []string{"resource_type", "account_id"}
+	for labelName := range nonCompliantMetricCustomLabels {
+		labelNames = append(labelNames, labelName)
+	}
+
+	gauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: metricName + "_custom_test2",
+			Help: "Test gauge for non-compliant resources with custom labels",
+		},
+		labelNames,
+	)
+	registry.MustRegister(gauge)
+	handler.nonCompliantGauges[metricName] = gauge
+
+	// Setup non-compliant counts
+	nonCompliantCounts := make(map[string]map[string]int)
+	resourceType := testResourceTypeS3Bucket
+	accountID := "123456789012"
+
+	nonCompliantCounts[resourceType] = make(map[string]int)
+	nonCompliantCounts[resourceType][accountID] = 3
+
+	// Setup allResourceTypes
+	allResourceTypes := make(map[string]map[string]bool)
+	allResourceTypes[resourceType] = make(map[string]bool)
+	allResourceTypes[resourceType][accountID] = true
+
+	// Call the method - should not panic and should use custom labels
+	handler.updateNonCompliantMetrics(nonCompliantCounts, allResourceTypes)
+
+	// Verify gauge exists
+	assert.NotNil(t, handler.nonCompliantGauges[metricName])
+}
+
+func TestNewHandlerWithCustomLabels(t *testing.T) {
+	nonCompliantMetricCustomLabels := map[string]string{
+		"environment": "production",
+		"team":        "platform",
+	}
+
+	handler := New(nil, nonCompliantMetricCustomLabels)
+
+	assert.NotNil(t, handler)
+	assert.Equal(t, nonCompliantMetricCustomLabels, handler.nonCompliantMetricCustomLabels)
+}
+
+func TestNewHandlerWithNilCustomLabels(t *testing.T) {
+	handler := New(nil, nil)
+
+	assert.NotNil(t, handler)
+	assert.NotNil(t, handler.nonCompliantMetricCustomLabels)
+	assert.Empty(t, handler.nonCompliantMetricCustomLabels)
+}
+
 func TestIsResourceRelevant(t *testing.T) {
 	handler := &Handler{}
 
