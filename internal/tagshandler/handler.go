@@ -674,7 +674,6 @@ func (h *Handler) updateNonCompliantMetrics(nonCompliantCounts map[string]map[st
 
 	gauge.Reset()
 
-	// Build label values: default labels + custom label values
 	for resourceType, accounts := range allResourceTypes {
 		for accountID := range accounts {
 			count := 0
@@ -682,10 +681,7 @@ func (h *Handler) updateNonCompliantMetrics(nonCompliantCounts map[string]map[st
 				count = nonCompliantCounts[resourceType][accountID]
 			}
 
-			// Start with default labels
 			labelValues := []string{resourceType, accountID}
-
-			// Append custom label values in the same order as they were defined
 			for _, labelValue := range h.nonCompliantMetricCustomLabels {
 				labelValues = append(labelValues, labelValue)
 			}
