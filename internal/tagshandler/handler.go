@@ -341,7 +341,6 @@ func (h *Handler) getOrCreateNonCompliantMetric() *prometheus.GaugeVec {
 		return gauge
 	}
 
-	// Build label names: default labels + custom labels
 	labelNames := []string{"resource_type", "account_id"}
 	for labelName := range h.nonCompliantMetricCustomLabels {
 		labelNames = append(labelNames, labelName)
