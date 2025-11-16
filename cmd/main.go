@@ -133,7 +133,7 @@ func main() {
 
 	var tagsHandlerInstance *tagshandler.Handler
 	if config.TagsHandler.ViewARN != "" {
-		tagsHandlerInstance = tagshandler.New(mgr.GetClient())
+		tagsHandlerInstance = tagshandler.New(mgr.GetClient(), config.TagsHandler.NonCompliantMetricCustomLabels)
 	}
 
 	if err := yacehandler.SetupWithManager(mgr, config, tagsHandlerInstance); err != nil {
