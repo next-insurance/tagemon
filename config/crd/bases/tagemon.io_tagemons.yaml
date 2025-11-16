@@ -241,7 +241,7 @@ spec:
               resourceExplorerService:
                 description: ResourceExplorerService optionally specifies the AWS
                   Resource Explorer service type
-                pattern: ^[a-z0-9]+$
+                pattern: ^[A-Za-z0-9-]+$
                 type: string
               scrapingInterval:
                 description: ScrapingInterval is the global scraping interval in seconds
@@ -282,7 +282,7 @@ spec:
               type:
                 description: Type is the AWS service type (e.g., AWS/RDS, AWS/Backup,
                   AWS/S3)
-                pattern: ^AWS\/[A-Z0-9]+$
+                pattern: ^AWS\/[A-Za-z0-9]+$
                 type: string
             required:
             - awsRoles

@@ -9,8 +9,9 @@ type Config struct {
 }
 
 type TagsHandlerConfig struct {
-	ViewARN   string         `mapstructure:"viewArn"`
-	Region    string         `mapstructure:"region"`
-	Namespace string         `mapstructure:"namespace"`
-	Interval  *time.Duration `mapstructure:"interval"`
+	ViewARN                        string            `mapstructure:"viewArn"`
+	Region                         string            `mapstructure:"region"`
+	Namespace                      string            `mapstructure:"namespace"`
+	Interval                       *time.Duration    `mapstructure:"interval"`
+	NonCompliantMetricCustomLabels map[string]string `mapstructure:"nonCompliantMetricCustomLabels"`
 }

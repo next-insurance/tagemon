@@ -3,7 +3,7 @@ controller:
   
   image:
     repository: nextinsurancedevops/tagemon
-    tag: v0.0.14
+    tag: v0.0.15
   
   logLevel: "info"
   
@@ -55,6 +55,7 @@ controller:
       viewArn: ""  # REQUIRED: AWS Resource Explorer view ARN
       region: "us-west-2"  # REQUIRED: AWS region
       interval: "1m"
+      nonCompliantMetricCustomLabels: {}
 
   serviceMonitor:
     enabled: true

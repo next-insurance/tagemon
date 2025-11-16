@@ -13,3 +13,7 @@ data:
       viewArn: {{ .Values.controller.config.tagsHandler.viewArn | quote }}
       region: {{ .Values.controller.config.tagsHandler.region | quote }}
       interval: {{ .Values.controller.config.tagsHandler.interval | default "1m" | quote }}
+      {{- if .Values.controller.config.tagsHandler.nonCompliantMetricCustomLabels }}
+      nonCompliantMetricCustomLabels:
+        {{- toYaml .Values.controller.config.tagsHandler.nonCompliantMetricCustomLabels | nindent 8 }}
+      {{- end }}

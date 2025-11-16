@@ -43,12 +43,12 @@ type PodResources struct {
 type TagemonSpec struct {
 	// Type is the AWS service type (e.g., AWS/RDS, AWS/Backup, AWS/S3)
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Pattern=`^AWS\/[A-Z0-9]+$`
+	// +kubebuilder:validation:Pattern=`^AWS\/[A-Za-z0-9]+$`
 	Type string `json:"type"`
 
 	// ResourceExplorerService optionally specifies the AWS Resource Explorer service type
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Pattern=`^[a-z0-9]+$`
+	// +kubebuilder:validation:Pattern=`^[A-Za-z0-9-]+$`
 	ResourceExplorerService *string `json:"resourceExplorerService,omitempty"`
 
 	// Regions is the list of AWS regions to monitor
