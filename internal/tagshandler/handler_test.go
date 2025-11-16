@@ -20,6 +20,11 @@ func stringPtr(s string) *string {
 	return &s
 }
 
+// Helper function to create bool pointers for tests
+func boolPtr(b bool) *bool {
+	return &b
+}
+
 func TestBuildTagPolicy(t *testing.T) {
 	handler := &Handler{}
 
@@ -159,6 +164,29 @@ func TestBuildTagPolicy(t *testing.T) {
 			expectedServiceType: "ec2",
 			description:         "should handle non-existent resource types",
 		},
+		{
+			name: "tagemon with required exported tags but no threshold tags",
+			tagemons: []tagemonv1alpha1.Tagemon{
+				{
+					Spec: tagemonv1alpha1.TagemonSpec{
+						Type: "AWS/Backup",
+						Metrics: []tagemonv1alpha1.TagemonMetric{
+							{
+								Name: "NumberOfBackupJobsFailed",
+							},
+						},
+						ExportedTagsOnMetrics: []tagemonv1alpha1.ExportedTag{
+							{
+								Key:      "mimir_tenants",
+								Required: boolPtr(true),
+							},
+						},
+					},
+				},
+			},
+			expectedServiceType: "backup",
+			description:         "should create policy for required exported tags even without threshold tags",
+		},
 	}
 
 	for _, tt := range tests {
@@ -175,6 +203,7 @@ func TestBuildTagPolicy(t *testing.T) {
 
 			// Verify policy structure for non-empty cases
 			hasThresholdTags := false
+			hasRequiredExportedTags := false
 			if len(tt.tagemons) > 0 {
 				for _, metric := range tt.tagemons[0].Spec.Metrics {
 					if len(metric.ThresholdTags) > 0 {
@@ -182,8 +211,14 @@ func TestBuildTagPolicy(t *testing.T) {
 						break
 					}
 				}
+				for _, exportedTag := range tt.tagemons[0].Spec.ExportedTagsOnMetrics {
+					if exportedTag.Required != nil && *exportedTag.Required {
+						hasRequiredExportedTags = true
+						break
+					}
+				}
 			}
-			if hasThresholdTags {
+			if hasThresholdTags || hasRequiredExportedTags {
 				assert.NotEmpty(t, policy.Blueprints)
 				assert.NotEmpty(t, policy.Resources)
 
@@ -203,6 +238,26 @@ func TestBuildTagPolicy(t *testing.T) {
 					// Blueprints should be created for both
 					assert.Contains(t, policy.Blueprints, "ec2-nonexistent-resource-type-base")
 					assert.Contains(t, policy.Blueprints, "ec2-instance-base")
+				}
+
+				// Special verification for required exported tags without threshold tags test
+				if tt.name == "tagemon with required exported tags but no threshold tags" {
+					// Should create 1 blueprint for wildcard resource type
+					assert.Len(t, policy.Blueprints, 1)
+
+					// Should create 1 resource config in backup service with wildcard
+					assert.Contains(t, policy.Resources, "backup")
+					assert.Len(t, policy.Resources["backup"], 1)
+					assert.Contains(t, policy.Resources["backup"], "*")
+
+					// Blueprint should be created for wildcard
+					assert.Contains(t, policy.Blueprints, "backup-*-base")
+
+					// Verify that the blueprint has the required exported tag as mandatory
+					blueprint := policy.Blueprints["backup-*-base"]
+					assert.NotNil(t, blueprint.TagPolicy)
+					assert.Contains(t, blueprint.TagPolicy.MandatoryKeys, "mimir_tenants")
+					assert.Contains(t, blueprint.TagPolicy.MandatoryKeys, "Name")
 				}
 			}
 		})
