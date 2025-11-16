@@ -138,7 +138,15 @@ func (h *Handler) buildTagPolicy(tagemons []tagemonv1alpha1.Tagemon) (*policyTyp
 			allThresholdTags = append(allThresholdTags, metric.ThresholdTags...)
 		}
 
-		if len(allThresholdTags) == 0 {
+		hasRequiredExportedTags := false
+		for _, exportedTag := range tagemon.Spec.ExportedTagsOnMetrics {
+			if exportedTag.Required != nil && *exportedTag.Required {
+				hasRequiredExportedTags = true
+				break
+			}
+		}
+
+		if len(allThresholdTags) == 0 && !hasRequiredExportedTags {
 			continue
 		}
 
@@ -147,6 +155,12 @@ func (h *Handler) buildTagPolicy(tagemons []tagemonv1alpha1.Tagemon) (*policyTyp
 			resourceType := thresholdTag.ResourceType
 			resourceTypeGroups[resourceType] = append(resourceTypeGroups[resourceType], thresholdTag)
 			thresholdTagsMap[serviceType][thresholdTag.Key] = thresholdTag.Type
+		}
+
+		// If there are no threshold tags but there are required exported tags,
+		// create a policy for all resources of this service type
+		if len(allThresholdTags) == 0 && hasRequiredExportedTags {
+			resourceTypeGroups["*"] = []tagemonv1alpha1.ThresholdTag{}
 		}
 
 		for resourceType, thresholdTags := range resourceTypeGroups {
