@@ -3,7 +3,7 @@ controller:
   
   image:
     repository: nextinsurancedevops/tagemon
-    tag: v0.0.16
+    tag: v0.0.17
   
   logLevel: "info"
   
@@ -56,6 +56,9 @@ controller:
       region: "us-west-2"  # REQUIRED: AWS region
       interval: "1m"
       nonCompliantMetricCustomLabels: {}
+    
+    yace:
+      customImage: ""  # Optional: Custom YACE image (defaults to prometheuscommunity/yet-another-cloudwatch-exporter:v0.62.1)
 
   serviceMonitor:
     enabled: true
