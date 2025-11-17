@@ -249,7 +249,7 @@ func (r *Reconciler) createDeployment(ctx context.Context, tagemon *v1alpha1.Tag
 					Containers: []corev1.Container{
 						{
 							Name:      "yace",
-							Image:     "prometheuscommunity/yet-another-cloudwatch-exporter:v0.62.1",
+							Image:     r.getYaceImage(),
 							Resources: r.buildResourceRequirements(tagemon.Spec.PodResources),
 							Ports: []corev1.ContainerPort{
 								{
@@ -655,4 +655,14 @@ func generateShortHash(input string) string {
 	hash := sha256.Sum256([]byte(input))
 
 	return hex.EncodeToString(hash[:])[:5]
+}
+
+func (r *Reconciler) getYaceImage() string {
+	const defaultYaceImage = "prometheuscommunity/yet-another-cloudwatch-exporter:v0.62.1"
+
+	if r.Config.Yace.CustomImage != "" {
+		return r.Config.Yace.CustomImage
+	}
+
+	return defaultYaceImage
 }

@@ -244,8 +244,8 @@ func TestBuildTagPolicy(t *testing.T) {
 
 					blueprint := policy.Blueprints["backup-*-base"]
 					assert.NotNil(t, blueprint.TagPolicy)
-					assert.Contains(t, blueprint.TagPolicy.MandatoryKeys, "mimir_tenants")
-					assert.Contains(t, blueprint.TagPolicy.MandatoryKeys, "Name")
+					assert.Contains(t, blueprint.MandatoryKeys, "mimir_tenants")
+					assert.Contains(t, blueprint.MandatoryKeys, "Name")
 				}
 			}
 		})

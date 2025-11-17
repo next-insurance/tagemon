@@ -17,3 +17,7 @@ data:
       nonCompliantMetricCustomLabels:
         {{- toYaml .Values.controller.config.tagsHandler.nonCompliantMetricCustomLabels | nindent 8 }}
       {{- end }}
+    {{- if .Values.controller.config.yace.customImage }}
+    yace:
+      customImage: {{ .Values.controller.config.yace.customImage | quote }}
+    {{- end }}
