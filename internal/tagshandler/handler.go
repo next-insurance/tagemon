@@ -97,7 +97,7 @@ func (h *Handler) CheckCompliance(ctx context.Context, namespace string, viewARN
 		return nil, fmt.Errorf("failed to create AWS provider: %w", err)
 	}
 
-	p := patrol.New(provider, &patrol.Options{StopOnError: false, ConcurrentWorkers: 10})
+	p := patrol.New(provider, &patrol.Options{StopOnError: false, ConcurrentWorkers: 1})
 	results, err := p.RunFromPolicy(ctx, policy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute tag patrol: %w", err)
