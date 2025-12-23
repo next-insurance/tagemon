@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -266,9 +267,17 @@ func (h *Handler) extractExportedTagsOnMetrics(tagemons []tagemonv1alpha1.Tagemo
 		}
 	}
 
+	// Extract keys and sort them to ensure consistent ordering
+	// (Go map iteration order is non-deterministic)
+	keys := make([]string, 0, len(uniqueTagsMap))
+	for key := range uniqueTagsMap {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
 	exportedTags := make([]tagemonv1alpha1.ExportedTag, 0, len(uniqueTagsMap))
-	for _, tag := range uniqueTagsMap {
-		exportedTags = append(exportedTags, tag)
+	for _, key := range keys {
+		exportedTags = append(exportedTags, uniqueTagsMap[key])
 	}
 
 	return exportedTags
@@ -308,16 +317,7 @@ func (h *Handler) getOrCreateMetric(tagKey string, exportedTags []tagemonv1alpha
 	logger := log.FromContext(context.Background())
 	metricName := h.tagToMetricName(tagKey)
 
-	metricKey := metricName
-	if len(exportedTags) > 0 {
-		exportedKeys := make([]string, 0, len(exportedTags))
-		for _, tag := range exportedTags {
-			exportedKeys = append(exportedKeys, tag.Key)
-		}
-		metricKey = fmt.Sprintf("%s_%s", metricName, strings.Join(exportedKeys, "_"))
-	}
-
-	if gauge, exists := h.metricsGauges[metricKey]; exists {
+	if gauge, exists := h.metricsGauges[metricName]; exists {
 		return gauge
 	}
 
@@ -337,13 +337,12 @@ func (h *Handler) getOrCreateMetric(tagKey string, exportedTags []tagemonv1alpha
 	if err := metrics.Registry.Register(gauge); err != nil {
 		logger.Error(err, "Failed to register metric",
 			"metricName", metricName,
-			"metricKey", metricKey,
 			"labelNames", labelNames,
 			"tagKey", tagKey)
 		return nil
 	}
 
-	h.metricsGauges[metricKey] = gauge
+	h.metricsGauges[metricName] = gauge
 
 	return gauge
 }
