@@ -1,7 +1,6 @@
 package tagshandler
 
 import (
-	"strings"
 	"testing"
 
 	tagemonv1alpha1 "github.com/next-insurance/tagemon/api/v1alpha1"
@@ -860,15 +859,7 @@ func TestGetOrCreateMetric(t *testing.T) {
 			} else {
 				if gauge != nil {
 					metricName := handler.tagToMetricName(tt.tagKey)
-					metricKey := metricName
-					if len(tt.exportedTags) > 0 {
-						exportedKeys := make([]string, 0, len(tt.exportedTags))
-						for _, tag := range tt.exportedTags {
-							exportedKeys = append(exportedKeys, tag.Key)
-						}
-						metricKey = metricName + "_" + strings.Join(exportedKeys, "_")
-					}
-					assert.NotNil(t, handler.metricsGauges[metricKey])
+					assert.NotNil(t, handler.metricsGauges[metricName])
 				}
 			}
 		})
