@@ -41,7 +41,7 @@ spec:
           env:
             {{- range $key, $value := .Values.controller.env }}
             - name: {{ $key }}
-              value: {{ $value }}
+              value: {{ $value | quote }}
             {{- end }}
           {{- end }}
           livenessProbe:
