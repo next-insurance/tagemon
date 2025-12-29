@@ -1,6 +1,10 @@
 controller:
   replicas: 1
   
+  env:
+    AWS_MAX_ATTEMPTS: "10"
+    AWS_RETRY_MODE: "adaptive"
+
   image:
     repository: nextinsurancedevops/tagemon
     tag: v0.0.19
