@@ -1,6 +1,6 @@
 # Tagemon
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Tests](https://github.com/next-insurance/tagemon/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/next-insurance/tagemon/actions/workflows/tests.yml)
 [![Helm Release](https://github.com/next-insurance/tagemon/actions/workflows/helm-release.yml/badge.svg?branch=main)](https://github.com/next-insurance/tagemon/actions/workflows/helm-release.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/next-insurance/tagemon)](https://goreportcard.com/report/github.com/next-insurance/tagemon)
@@ -438,13 +438,13 @@ curl http://localhost:8080/metrics
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-### Code of Conduct
-
-Please note that this project is released with a Contributor Code of Conduct. By participating in this project you agree to abide by its terms.
-
 ## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Privacy Policy
+
+For information about how we collect, use, and protect your data, please see our [Privacy Policy](http://nextinsurance.com/privacy-policy/).
 
 ## Acknowledgments
 
