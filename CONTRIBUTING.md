@@ -66,10 +66,6 @@ make install
 make run
 ```
 
-## Code of Conduct
-
-This project adheres to a [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to privacy@nextinsurance.com.
-
 ## Questions?
 
 If you have questions, please [open an issue](https://github.com/next-insurance/tagemon/issues) with the `question` label or check the [README](README.md) for documentation.
