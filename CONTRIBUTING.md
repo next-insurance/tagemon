@@ -23,11 +23,17 @@ If you find a bug or have a suggestion, please [open an issue](https://github.co
    - Update documentation as needed
    - Ensure all tests pass (`make test`)
 
-3. **Commit and push**:
+3. **Commit and push** using [Conventional Commits](https://www.conventionalcommits.org/):
    ```bash
-   git commit -m "Add feature: description of your change"
+   git commit -m "feat: add new feature description"
    git push origin feature/your-feature-name
    ```
+   
+   **Commit message format**: Use prefixes like `feat:`, `fix:`, or `chore:` followed by a brief description. Examples:
+   - `feat: add support for RDS monitoring`
+   - `fix: resolve memory leak in tag handler`
+   - `chore: update dependencies`
+   - `BREAKING CHANGE: modify CRD API structure`
 
 4. **Open a Pull Request** with a clear title and description, referencing any related issues.
 
@@ -59,6 +65,10 @@ make test
 make install
 make run
 ```
+
+## Code of Conduct
+
+This project adheres to a [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to privacy@nextinsurance.com.
 
 ## Questions?
 
