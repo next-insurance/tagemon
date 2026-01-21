@@ -913,7 +913,8 @@ func TestGetOrCreateNonCompliantMetricWithCustomLabels(t *testing.T) {
 	}
 
 	metricName := "tagemon_resources_non_compliant_count_custom_test"
-	labelNames := []string{"resource_type", "account_id"}
+	labelNames := make([]string, 0, 2+len(nonCompliantMetricCustomLabels))
+	labelNames = append(labelNames, "resource_type", "account_id")
 	for labelName := range nonCompliantMetricCustomLabels {
 		labelNames = append(labelNames, labelName)
 	}
@@ -948,7 +949,8 @@ func TestUpdateNonCompliantMetricsWithCustomLabels(t *testing.T) {
 	}
 
 	metricName := testNonCompliantMetricName
-	labelNames := []string{"resource_type", "account_id"}
+	labelNames := make([]string, 0, 2+len(nonCompliantMetricCustomLabels))
+	labelNames = append(labelNames, "resource_type", "account_id")
 	for labelName := range nonCompliantMetricCustomLabels {
 		labelNames = append(labelNames, labelName)
 	}

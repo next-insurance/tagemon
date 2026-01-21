@@ -134,7 +134,11 @@ func (h *Handler) buildTagPolicy(tagemons []tagemonv1alpha1.Tagemon) (*policyTyp
 			thresholdTagsMap[serviceType] = make(map[string]tagemonv1alpha1.ThresholdTagType)
 		}
 
-		var allThresholdTags []tagemonv1alpha1.ThresholdTag
+		totalThresholdTags := 0
+		for _, metric := range tagemon.Spec.Metrics {
+			totalThresholdTags += len(metric.ThresholdTags)
+		}
+		allThresholdTags := make([]tagemonv1alpha1.ThresholdTag, 0, totalThresholdTags)
 		for _, metric := range tagemon.Spec.Metrics {
 			allThresholdTags = append(allThresholdTags, metric.ThresholdTags...)
 		}
@@ -247,7 +251,11 @@ func (h *Handler) extractAllowedAccountIDs(tagemons []tagemonv1alpha1.Tagemon) m
 }
 
 func (h *Handler) extractSearchTagsFilters(tagemons []tagemonv1alpha1.Tagemon) []tagemonv1alpha1.TagemonTag {
-	searchTags := make([]tagemonv1alpha1.TagemonTag, 0)
+	totalSearchTags := 0
+	for _, tagemon := range tagemons {
+		totalSearchTags += len(tagemon.Spec.SearchTags)
+	}
+	searchTags := make([]tagemonv1alpha1.TagemonTag, 0, totalSearchTags)
 
 	for _, tagemon := range tagemons {
 		searchTags = append(searchTags, tagemon.Spec.SearchTags...)
@@ -607,7 +615,8 @@ func (h *Handler) createMetricsForResource(resource interface{}, thresholdTags m
 			}
 
 			if err == nil {
-				labelValues := []string{tagName, accountID, resourceType}
+				labelValues := make([]string, 0, 3+len(exportedTagValues))
+				labelValues = append(labelValues, tagName, accountID, resourceType)
 				labelValues = append(labelValues, exportedTagValues...)
 				gauge.WithLabelValues(labelValues...).Set(value)
 			}
@@ -694,7 +703,8 @@ func (h *Handler) updateNonCompliantMetrics(nonCompliantCounts map[string]map[st
 				count = nonCompliantCounts[resourceType][accountID]
 			}
 
-			labelValues := []string{resourceType, accountID}
+			labelValues := make([]string, 0, 2+len(h.nonCompliantMetricCustomLabels))
+			labelValues = append(labelValues, resourceType, accountID)
 			for _, labelValue := range h.nonCompliantMetricCustomLabels {
 				labelValues = append(labelValues, labelValue)
 			}
