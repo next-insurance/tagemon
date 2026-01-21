@@ -1,0 +1,45 @@
+apiVersion: tagemon.io/v1alpha1
+kind: Tagemon
+metadata:
+  name: test-tagemon
+spec:
+  type: AWS/EC2 # AWS/Backup, AWS/S3, etc.
+  exportedTagsOnMetrics:
+    - key: eks:eks-cluster-name
+      required: true
+  awsRoles:
+    - roleArn: arn:aws:iam::343218224011:role/yace-pe-dev-01-test
+  regions: 
+    - us-west-2
+  
+  # Set the global settings for all metrics as default, can be overridden by each metric
+  statistics: 
+    - Maximum
+  period: 60
+  nilToZero: true
+  addCloudwatchTimestamp: true
+
+  podResources:
+    requests:
+      cpu: 400m
+      memory: 128Mi
+    limits:
+      cpu: 400m
+
+  metrics:
+    - name: CPUUtilization
+      statistics: 
+        - Maximum
+      period: 60 # this is optional
+      nilToZero: true # this is optional
+      addCloudwatchTimestamp: true # this is optional
+      thresholdTags:
+        - type: percentage
+          key: eks:eks-cluster-name
+          resourceType: instance
+          required: true
+
+  searchTags: # this is optional
+    - key: eks:eks-cluster-name
+      value: argocd-development-eks
+  
