@@ -32,7 +32,7 @@ Create a `values.yaml` file:
 
 ```yaml
 controller:
-  serviceAccountName: tagemon-controller
+  serviceAccountName: tagemon-controller-manager
   config:
     yaceServiceAccountName: tagemon-yace
     tagsHandler:
@@ -45,7 +45,7 @@ Install the chart:
 
 ```bash
 helm install tagemon oci://docker.io/nextinsurancedevops/tagemon \
-  --namespace monitoring \
+  --namespace tagemon \
   --create-namespace \
   -f values.yaml
 ```
@@ -63,29 +63,6 @@ kubectl apply -f config/default/
 ```
 
 ## Tagemon CRD Specification
-
-### Basic Example
-
-```yaml
-apiVersion: tagemon.io/v1alpha1
-kind: Tagemon
-metadata:
-  name: ec2-monitor
-  namespace: monitoring
-spec:
-  type: AWS/EC2
-  regions:
-    - us-east-1
-  awsRoles:
-    - roleArn: arn:aws:iam::123456789012:role/TagemonRole
-  statistics:
-    - Average
-  period: 300
-  metrics:
-    - name: CPUUtilization
-      statistics:
-        - Average
-```
 
 ### Spec Fields Reference
 
@@ -109,8 +86,109 @@ spec:
 | `addCloudwatchTimestamp` | bool | `false` | Include CloudWatch timestamp in metrics |
 | `searchTags` | []object | - | Filter resources by tags |
 | `exportedTagsOnMetrics` | []object | - | Tags to export as Prometheus labels |
+| `dimensionNameRequirements` | []string | - | Required CloudWatch dimension names for metrics |
 | `podResources` | object | - | Resource requests/limits for YACE pods |
 | `namePrefix` | string | - | Prefix for generated resource names (max 200 chars) |
+| `resourceExplorerService` | string | - | Override AWS Resource Explorer service type (optional) |
+
+### Complete Example
+
+This example demonstrates all features of Tagemon, including required fields and optional configurations:
+
+```yaml
+apiVersion: tagemon.io/v1alpha1
+kind: Tagemon
+metadata:
+  name: tagemon-rds-monitoring
+  namespace: tagemon
+spec:
+  # Required fields
+  type: AWS/RDS
+  regions:
+    - us-east-1
+    - us-west-2
+  awsRoles:
+    - roleArn: arn:aws:iam::123456789012:role/TagemonRole
+  statistics: [Maximum]
+  period: 60
+  metrics:
+    - name: CPUUtilization  # name is required
+      statistics: [Average]  # optional: overrides spec.statistics
+      period: 60            # optional: overrides spec.period
+      thresholdTags:         # optional: tag-based compliance
+        - type: int
+          key: max_cpu_utilization_percent_threshold
+          resourceType: db
+          required: true    # optional: defaults to true
+    
+    - name: DBLoad
+      statistics: [Maximum]  # optional
+      period: 60            # optional
+      thresholdTags:         # optional
+        - type: int
+          key: max_db_load_threshold
+          resourceType: db
+          required: true    # optional
+    
+    - name: FreeStorageSpace
+      statistics: [Minimum]  # optional
+      period: 60            # optional
+      thresholdTags:         # optional
+        - type: int
+          key: allocated_storage_threshold
+          resourceType: db
+          required: false   # optional
+        - type: int
+          key: low_free_storage_percent_threshold
+          resourceType: db
+          required: false   # optional
+        - type: int
+          key: lowest_free_storage_percent_threshold
+          resourceType: db
+          required: false   # optional
+        - type: int
+          key: storage_drop_mb_threshold
+          resourceType: db
+          required: false   # optional
+    
+    - name: ReplicaLag
+      statistics: [Minimum, Maximum]  # optional
+      period: 60                      # optional
+      thresholdTags:                   # optional
+        - type: int
+          key: high_replica_lag_threshold
+          resourceType: db
+          required: false             # optional
+  
+  # Optional fields
+  scrapingInterval: 240
+  nilToZero: true
+  
+  # Optional: Filter resources by tags - only monitor resources with these tags
+  searchTags:
+    - key: monitor
+      value: "true"
+  
+  # Optional: Dimension requirements for CloudWatch metrics
+  dimensionNameRequirements:
+    - DBInstanceIdentifier
+  
+  # Optional: Export tags as Prometheus labels
+  exportedTagsOnMetrics:
+    - key: Environment
+      required: true
+    - key: DatabaseName
+      required: false
+  
+  # Optional: Resource limits for YACE pods
+  podResources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+```
 
 ### AWS Roles
 
@@ -126,21 +204,7 @@ awsRoles:
 
 ### Metrics
 
-Define which CloudWatch metrics to collect:
-
-```yaml
-metrics:
-  - name: CPUUtilization
-    statistics: [Average, Maximum]  # Optional: overrides spec.statistics
-    period: 60                       # Optional: overrides spec.period
-    nilToZero: true                  # Optional: overrides spec.nilToZero
-    addCloudwatchTimestamp: false    # Optional: overrides spec.addCloudwatchTimestamp
-    thresholdTags:                   # Optional: tag-based compliance
-      - type: percentage
-        key: cpu-threshold
-        resourceType: instance
-        required: true
-```
+Define which CloudWatch metrics to collect. Each metric can override global settings and optionally define threshold tags for alerting.
 
 **Fields:**
 - `name` (required): CloudWatch metric name
@@ -148,7 +212,9 @@ metrics:
 - `period` (optional): Override default period (min: 2 seconds)
 - `nilToZero` (optional): Override default nil-to-zero behavior
 - `addCloudwatchTimestamp` (optional): Override timestamp behavior
-- `thresholdTags` (optional): Define tag-based thresholds for compliance validation
+- `thresholdTags` (optional): Define tag-based thresholds for compliance validation (see [Threshold Tags](#threshold-tags) below)
+
+See the [complete example](#complete-example) above for usage examples.
 
 ### Threshold Tags
 
@@ -169,6 +235,38 @@ thresholdTags:
 
 **Example Use Case:**
 Tag an EC2 instance with `cpu-threshold: 80`, and Tagemon will validate that the instance has this tag and can use it for alerting thresholds.
+
+**Alerting with Threshold Tags:**
+
+Tagemon exposes threshold values as Prometheus metrics that can be used in alerting rules. The metric name follows the pattern `tagemon_{threshold_tag_key}` with labels `tag_Name` and `account_id`.
+
+Example Prometheus alert rule that applies to all RDS instances using threshold tags:
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: rds-high-cpu-alert
+  namespace: tagemon
+spec:
+  groups:
+    - name: aws-rds
+      rules:
+        - alert: RDSHighCPUUtilization
+          annotations:
+            description: DB {{ $labels.tag_Name }} has a high CPU utilization
+            summary: 'DB {{ $labels.tag_Name }} has a high CPU Utilization, Utilization: {{ $value | printf "%.0f%%" }}'
+          expr: aws_rds_cpuutilization_average > on(tag_Name, account_id) tagemon_max_cpu_utilization_percent_threshold
+          for: 10m
+          labels:
+            severity: warning
+```
+
+This alert rule automatically applies to all RDS instances monitored by Tagemon. Each RDS instance can have its own threshold value defined via the `max_cpu_utilization_percent_threshold` tag, allowing per-resource alerting thresholds. In this example:
+- `aws_rds_cpuutilization_average` is the CloudWatch metric exported by YACE for all RDS instances
+- `tagemon_max_cpu_utilization_percent_threshold` is the threshold metric created by Tagemon from the tag on each RDS instance
+- The `on(tag_Name, account_id)` clause ensures the comparison is done per-resource, matching each RDS instance's CPU utilization against its own threshold value
+- The alert fires for any RDS instance when its CPU utilization exceeds the threshold value defined in its tag
 
 ### Search Tags
 
@@ -200,7 +298,7 @@ exportedTagsOnMetrics:
 
 ### Pod Resources
 
-Configure resource requests and limits for YACE pods:
+Configure resource requests and limits for YACE pods. See the [complete example](#complete-example) above for usage.
 
 ```yaml
 podResources:
@@ -210,68 +308,6 @@ podResources:
   limits:
     cpu: 500m
     memory: 256Mi
-```
-
-### Complete Example
-
-```yaml
-apiVersion: tagemon.io/v1alpha1
-kind: Tagemon
-metadata:
-  name: rds-monitoring
-  namespace: monitoring
-spec:
-  type: AWS/RDS
-  regions:
-    - us-east-1
-    - us-west-2
-  
-  awsRoles:
-    - roleArn: arn:aws:iam::123456789012:role/TagemonRole
-  
-  # Global defaults
-  statistics: [Average, Maximum]
-  period: 300
-  scrapingInterval: 120
-  nilToZero: true
-  
-  # Filter only production databases
-  searchTags:
-    - key: Environment
-      value: production
-  
-  # Export tags as Prometheus labels
-  exportedTagsOnMetrics:
-    - key: Environment
-      required: true
-    - key: DatabaseName
-      required: false
-  
-  # Metrics to collect
-  metrics:
-    - name: CPUUtilization
-      statistics: [Average, Maximum]
-      thresholdTags:
-        - type: percentage
-          key: cpu-threshold
-          resourceType: database
-          required: true
-    
-    - name: DatabaseConnections
-      statistics: [Average, Sum]
-    
-    - name: FreeableMemory
-      period: 60  # More frequent collection
-      nilToZero: false
-  
-  # Resource limits for YACE pods
-  podResources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 500m
-      memory: 256Mi
 ```
 
 ## AWS Prerequisites
@@ -333,7 +369,7 @@ The operator is configured via the Helm chart values. Key settings:
 
 ```yaml
 controller:
-  serviceAccountName: tagemon-controller
+  serviceAccountName: tagemon-controller-manager
   config:
     tagsHandler:
       viewArn: "arn:aws:resource-explorer-2:REGION:ACCOUNT:view/NAME/ID"  # REQUIRED
@@ -344,12 +380,39 @@ controller:
 
 For manual deployments, see [config/controller-config.example.yaml](config/controller-config.example.yaml).
 
+## Tagging Policy Compliance
+
+Tagemon automatically validates AWS resources against tagging policies defined in your Tagemon CRDs. The tagging policy is built from:
+
+- **Name Tag**: Tagemon automatically collects and expects the `Name` tag to be present on all resources. This tag is used to identify resources in metrics and alerts (exposed as the `tag_Name` label in Prometheus metrics).
+- **Required Tags**: Tags specified in `exportedTagsOnMetrics` with `required: true` must be present on resources
+- **Threshold Tags**: Tags defined in `thresholdTags` must exist and have valid values based on their type (int, bool, percentage)
+- **Search Tags**: Resources must match all `searchTags` to be considered for monitoring
+
+### Compliance Metrics
+
+Tagemon exposes the following Prometheus metrics for tagging policy compliance:
+
+- **`tagemon_resources_non_compliant_count`**: A gauge metric tracking the number of non-compliant resources, labeled by:
+  - `resource_type`: The AWS resource type (e.g., `rds/db`, `ec2/instance`)
+  - `account_id`: The AWS account ID
+  - Custom labels: Any labels configured via `nonCompliantMetricCustomLabels` in the controller config
+
+This metric helps you monitor and alert on tagging policy violations across your AWS infrastructure.
+
+### Compliance Checking
+
+The Tags Handler periodically scans AWS resources using AWS Resource Explorer and validates them against the tagging policy. Resources that don't meet the policy requirements are:
+- Logged as non-compliant
+- Tracked in the `tagemon_resources_non_compliant_count` metric
+- Excluded from CloudWatch metric collection until they become compliant
+
 ## Architecture
 
 Tagemon consists of three main components:
 
 1. **YACE Handler**: Manages YACE deployments for CloudWatch metrics
-2. **Tags Handler**: Validates resource compliance using AWS Resource Explorer
+2. **Tags Handler**: Validates resource compliance using AWS Resource Explorer and exposes compliance metrics
 3. **Config Handler**: Manages controller configuration
 
 ## Development
@@ -402,26 +465,26 @@ make uninstall
 kubectl get tagemon -A
 
 # View Tagemon details
-kubectl describe tagemon <name> -n monitoring
+kubectl describe tagemon <name> -n tagemon
 
 # Check created YACE deployments
-kubectl get deployments -n monitoring -l app.kubernetes.io/created-by=tagemon
+kubectl get deployments -n tagemon -l app.kubernetes.io/created-by=tagemon
 
 # View operator logs
-kubectl logs -n monitoring deployment/tagemon-controller-manager -f
+kubectl logs -n tagemon deployment/tagemon-controller-manager -f
 ```
 
 ### Troubleshooting
 
 ```bash
 # Check operator status
-kubectl get pods -n monitoring -l app.kubernetes.io/name=tagemon
+kubectl get pods -n tagemon -l app.kubernetes.io/name=tagemon
 
 # View YACE pod logs
-kubectl logs -n monitoring -l app.kubernetes.io/created-by=tagemon
+kubectl logs -n tagemon -l app.kubernetes.io/created-by=tagemon
 
 # Check controller metrics
-kubectl port-forward -n monitoring svc/tagemon-controller-manager-metrics 8080:8080
+kubectl port-forward -n tagemon svc/tagemon-controller-manager-metrics 8080:8080
 curl http://localhost:8080/metrics
 ```
 

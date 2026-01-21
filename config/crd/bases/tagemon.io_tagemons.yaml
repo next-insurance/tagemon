@@ -60,10 +60,6 @@ spec:
                 items:
                   description: AWSRole represents an AWS IAM role to assume
                   properties:
-                    externalId:
-                      description: ExternalId is the external ID to use when assuming
-                        the role (optional)
-                      type: string
                     roleArn:
                       description: RoleArn is the ARN of the AWS IAM role to assume
                       pattern: ^arn:aws:iam::\d{12}:role\/[A-Za-z0-9+=,.@_\-/]+$
