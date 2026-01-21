@@ -565,13 +565,9 @@ func (r *Reconciler) generateYACEConfig(tagemon *v1alpha1.Tagemon) (string, erro
 					"roles": func() []map[string]interface{} {
 						roles := make([]map[string]interface{}, len(tagemon.Spec.Roles))
 						for i, role := range tagemon.Spec.Roles {
-							roleMap := map[string]interface{}{
+							roles[i] = map[string]interface{}{
 								"roleArn": role.RoleArn,
 							}
-							if role.ExternalId != "" {
-								roleMap["externalId"] = role.ExternalId
-							}
-							roles[i] = roleMap
 						}
 						return roles
 					}(),

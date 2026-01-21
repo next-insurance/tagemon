@@ -116,8 +116,7 @@ func TestGenerateYACEConfig(t *testing.T) {
 				Regions: []v1alpha1.AWSRegion{"us-east-1", "us-west-2"},
 				Roles: []v1alpha1.AWSRole{
 					{
-						RoleArn:    "arn:aws:iam::123456789012:role/role1",
-						ExternalId: "ext123",
+						RoleArn: "arn:aws:iam::123456789012:role/role1",
 					},
 					{
 						RoleArn: "arn:aws:iam::987654321098:role/role2",
@@ -149,7 +148,6 @@ func TestGenerateYACEConfig(t *testing.T) {
 		expectedStrings := []string{
 			"type: AWS/RDS",
 			"us-west-2",
-			"externalId: ext123",
 			"key: Environment",
 			"value: production",
 			"- Maximum",  // Metric-specific statistics
@@ -1357,8 +1355,7 @@ func TestCreateConfigMap(t *testing.T) {
 				Regions:    []v1alpha1.AWSRegion{"us-east-1", "us-west-2"},
 				Roles: []v1alpha1.AWSRole{
 					{
-						RoleArn:    "arn:aws:iam::123456789012:role/role1",
-						ExternalId: "external123",
+						RoleArn: "arn:aws:iam::123456789012:role/role1",
 					},
 				},
 				SearchTags: []v1alpha1.TagemonTag{
@@ -1415,7 +1412,6 @@ func TestCreateConfigMap(t *testing.T) {
 		expectedElements := []string{
 			"AWS/RDS",
 			"us-west-2",
-			"externalId: external123",
 			"key: Environment",
 			"value: production",
 			"- Average",

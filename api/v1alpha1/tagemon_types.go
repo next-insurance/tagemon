@@ -15,10 +15,6 @@ type AWSRole struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Pattern=`^arn:aws:iam::\d{12}:role\/[A-Za-z0-9+=,.@_\-/]+$`
 	RoleArn string `json:"roleArn"`
-
-	// ExternalId is the external ID to use when assuming the role (optional)
-	// +kubebuilder:validation:Optional
-	ExternalId string `json:"externalId,omitempty"`
 }
 
 // Statistics represents a valid AWS metrics statistics
