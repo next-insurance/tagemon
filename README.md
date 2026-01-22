@@ -7,6 +7,28 @@
 
 A Kubernetes operator for monitoring AWS CloudWatch metrics with tag-based compliance validation.
 
+## 🚀 Why Tagemon?
+
+Monitoring large-scale AWS environments often leads to **Alert Fatigue** or **Blind Spots** because static configurations can't keep up with dynamic infrastructure. Tagemon transforms your monitoring from static configuration files into a tag-driven ecosystem.
+
+### The Problem
+
+- **Manual Overhead**: Manually updating exporter configuration every time a new RDS instance or Auto Scaling Group is launched
+- **Inconsistent Alerting**: Maintaining separate alert rules for each resource instead of a single alert rule that applies to all resources with tag-based dynamic thresholds
+- **Monitoring Gaps**: Resources launched but not added to monitoring configuration become invisible, creating blind spots until someone manually discovers and configures them
+
+### The Solution
+
+- **Infrastructure as Code via Tags**: Stop editing YAML to monitor new resources. Simply tag an AWS resource, and Tagemon automatically discovers it and starts exporting its metrics to Prometheus
+- **Decentralized Thresholds**: Empower developers to define their own alerting thresholds directly on AWS resource tags. Tagemon exports these as metrics, allowing for a single, universal Prometheus alert rule that respects per-resource limits
+- **Enforced Compliance**: Automatically identify "Non-Compliant" resources that lack mandatory tags and view these gaps as Prometheus metrics to drive better cloud governance
+
+### Key Benefits
+
+- **Reduce TTR (Time to Response)**: Monitoring is active the second a resource is tagged
+- **FinOps & Governance**: Ensure 100% of your infrastructure is tagged and accounted for by tracking the `tagemon_resources_non_compliant_count` metric
+- **Centralized Management**: Single point of control for all CloudWatch monitoring across your organization, eliminating configuration drift and ensuring uniform metric collection standards
+
 ## Features
 
 - 🎯 **Tag-Based Monitoring**: Monitor AWS resources based on tags
