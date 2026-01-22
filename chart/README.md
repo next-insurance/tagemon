@@ -95,7 +95,7 @@ controller:
   
   image:
     repository: nextinsurancedevops/tagemon
-    tag: v0.0.20
+    tag: v0.1.0
   
   logLevel: "info"  # debug, info, error
   
@@ -166,7 +166,7 @@ After installing the operator, create Tagemon resources to start monitoring.
 |-----------|-------------|---------|
 | `controller.replicas` | Number of controller replicas | `1` |
 | `controller.image.repository` | Controller image repository | `nextinsurancedevops/tagemon` |
-| `controller.image.tag` | Controller image tag | `v0.0.20` |
+| `controller.image.tag` | Controller image tag | `v0.1.0` |
 | `controller.logLevel` | Log level (debug, info, error) | `info` |
 | `controller.serviceAccountName` | Service account for controller | `tagemon-controller-manager` |
 | `controller.config.yaceServiceAccountName` | Service account for YACE pods | `tagemon-yace` |
@@ -217,7 +217,7 @@ helm upgrade tagemon oci://docker.io/nextinsurancedevops/tagemon \
 # Upgrade with new values
 helm upgrade tagemon oci://docker.io/nextinsurancedevops/tagemon \
   --namespace tagemon \
-  --set controller.image.tag=v0.0.21 \
+  --set controller.image.tag=v0.1.0 \
   --reuse-values
 ```
 
