@@ -65,4 +65,5 @@ changelog:
       - "^feat:"
       - "^fix:"
       - "^chore:"
+      - "^chore(deps):"
       - "^BREAKING CHANGE:"
