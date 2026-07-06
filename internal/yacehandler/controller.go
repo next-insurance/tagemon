@@ -30,6 +30,10 @@ import (
 
 const (
 	finalizerName = "tagemon.io/finalizer"
+
+	yaceConfigKey = "config.yml"
+	yaceName      = "yace"
+	regionUSEast1 = "us-east-1"
 )
 
 type Reconciler struct {
@@ -204,7 +208,7 @@ func (r *Reconciler) createConfigMap(ctx context.Context, tagemon *v1alpha1.Tage
 			},
 		},
 		Data: map[string]string{
-			"config.yml": yaceConfig,
+			yaceConfigKey: yaceConfig,
 		},
 	}
 
@@ -220,7 +224,7 @@ func (r *Reconciler) createConfigMap(ctx context.Context, tagemon *v1alpha1.Tage
 func (r *Reconciler) createDeployment(ctx context.Context, tagemon *v1alpha1.Tagemon) error {
 	logger := log.FromContext(ctx)
 
-	deploymentName := r.buildResourceName(tagemon, "yace")
+	deploymentName := r.buildResourceName(tagemon, yaceName)
 	configMapName := tagemon.Status.ConfigMapName
 
 	deployment := &appsv1.Deployment{
@@ -248,7 +252,7 @@ func (r *Reconciler) createDeployment(ctx context.Context, tagemon *v1alpha1.Tag
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:      "yace",
+							Name:      yaceName,
 							Image:     r.getYaceImage(),
 							Resources: r.buildResourceRequirements(tagemon.Spec.PodResources),
 							Ports: []corev1.ContainerPort{
@@ -261,7 +265,7 @@ func (r *Reconciler) createDeployment(ctx context.Context, tagemon *v1alpha1.Tag
 								{
 									Name:      "config",
 									MountPath: "/tmp/config.yml",
-									SubPath:   "config.yml",
+									SubPath:   yaceConfigKey,
 								},
 							},
 							Args: []string{
@@ -280,8 +284,8 @@ func (r *Reconciler) createDeployment(ctx context.Context, tagemon *v1alpha1.Tag
 									},
 									Items: []corev1.KeyToPath{
 										{
-											Key:  "config.yml",
-											Path: "config.yml",
+											Key:  yaceConfigKey,
+											Path: yaceConfigKey,
 										},
 									},
 								},
@@ -339,9 +343,9 @@ func (r *Reconciler) updateConfigMap(ctx context.Context, tagemon *v1alpha1.Tage
 		return false, err
 	}
 
-	if currentConfig, exists := configMap.Data["config.yml"]; !exists || currentConfig != yaceConfig {
+	if currentConfig, exists := configMap.Data[yaceConfigKey]; !exists || currentConfig != yaceConfig {
 		configMap.Data = map[string]string{
-			"config.yml": yaceConfig,
+			yaceConfigKey: yaceConfig,
 		}
 		if err := r.Update(ctx, configMap); err != nil {
 			logger.Error(err, "Failed to update ConfigMap", "name", configMap.Name)
@@ -517,7 +521,7 @@ func setMetricOrGlobalValue(m map[string]interface{}, key string, metric *v1alph
 
 	metricValue := reflect.ValueOf(metric).Elem().FieldByName(fieldName)
 	if metricValue.IsValid() && !metricValue.IsZero() {
-		if metricValue.Kind() == reflect.Ptr {
+		if metricValue.Kind() == reflect.Pointer {
 			m[key] = metricValue.Elem().Interface()
 		} else {
 			m[key] = metricValue.Interface()
@@ -527,7 +531,7 @@ func setMetricOrGlobalValue(m map[string]interface{}, key string, metric *v1alph
 
 	specValue := reflect.ValueOf(spec).Elem().FieldByName(fieldName)
 	if specValue.IsValid() && !specValue.IsZero() {
-		if specValue.Kind() == reflect.Ptr {
+		if specValue.Kind() == reflect.Pointer {
 			m[key] = specValue.Elem().Interface()
 		} else {
 			m[key] = specValue.Interface()
@@ -545,7 +549,7 @@ func getScrapingInterval(tagemon *v1alpha1.Tagemon) int32 {
 func (r *Reconciler) generateYACEConfig(tagemon *v1alpha1.Tagemon) (string, error) {
 	config := map[string]interface{}{
 		"apiVersion": "v1alpha1",
-		"sts-region": "us-east-1", // Default STS region
+		"sts-region": regionUSEast1, // Default STS region
 		"discovery": map[string]interface{}{
 			"exportedTagsOnMetrics": map[string]interface{}{
 				tagemon.Spec.Type: func() []string {
