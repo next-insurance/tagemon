@@ -20,6 +20,27 @@ import (
 	"github.com/next-insurance/tagemon/internal/confighandler"
 )
 
+const (
+	saTestSA                 = "test-sa"
+	nameTestTagemon          = "test-tagemon"
+	nsDefault                = "default"
+	awsServiceS3             = "AWS/S3"
+	testRoleARN              = "arn:aws:iam::123456789012:role/test-role"
+	metricBucketSizeBytes    = "BucketSizeBytes"
+	awsServiceRDS            = "AWS/RDS"
+	regionUSWest2            = "us-west-2"
+	tagKeyEnvironment        = "Environment"
+	tagKeyTeam               = "Team"
+	statAverage              = "Average"
+	metricCPUUtilization     = "CPUUtilization"
+	statMaximum              = "Maximum"
+	tagKeyProject            = "Project"
+	nameNonExistentConfigMap = "non-existent-configmap"
+	nameTestConfigMap        = "test-configmap"
+	nameTestDeployment       = "test-deployment"
+	statSum                  = "Sum"
+)
+
 // =============================================================================
 // UTILITY FUNCTION TESTS
 // =============================================================================
@@ -31,7 +52,7 @@ func TestReconciler_Initialization(t *testing.T) {
 		_ = v1alpha1.AddToScheme(scheme)
 
 		fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
-		config := &confighandler.Config{ServiceAccountName: "test-sa"}
+		config := &confighandler.Config{ServiceAccountName: saTestSA}
 
 		reconciler := &Reconciler{
 			Client: fakeClient,
@@ -48,7 +69,7 @@ func TestReconciler_Initialization(t *testing.T) {
 		if reconciler.Config == nil {
 			t.Error("expected Config to be set")
 		}
-		if reconciler.Config.ServiceAccountName != "test-sa" {
+		if reconciler.Config.ServiceAccountName != saTestSA {
 			t.Errorf("expected ServiceAccountName to be 'test-sa', got %s", reconciler.Config.ServiceAccountName)
 		}
 	})
@@ -62,17 +83,17 @@ func TestGenerateYACEConfig(t *testing.T) {
 	t.Run("should generate valid YACE config with minimal spec", func(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-tagemon",
-				Namespace: "default",
+				Name:      nameTestTagemon,
+				Namespace: nsDefault,
 			},
 			Spec: v1alpha1.TagemonSpec{
-				Type:    "AWS/S3",
-				Regions: []v1alpha1.AWSRegion{"us-east-1"},
+				Type:    awsServiceS3,
+				Regions: []v1alpha1.AWSRegion{regionUSEast1},
 				Roles: []v1alpha1.AWSRole{
-					{RoleArn: "arn:aws:iam::123456789012:role/test-role"},
+					{RoleArn: testRoleARN},
 				},
 				Metrics: []v1alpha1.TagemonMetric{
-					{Name: "BucketSizeBytes"},
+					{Name: metricBucketSizeBytes},
 				},
 			},
 		}
@@ -109,11 +130,11 @@ func TestGenerateYACEConfig(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "complex-tagemon",
-				Namespace: "default",
+				Namespace: nsDefault,
 			},
 			Spec: v1alpha1.TagemonSpec{
-				Type:    "AWS/RDS",
-				Regions: []v1alpha1.AWSRegion{"us-east-1", "us-west-2"},
+				Type:    awsServiceRDS,
+				Regions: []v1alpha1.AWSRegion{regionUSEast1, regionUSWest2},
 				Roles: []v1alpha1.AWSRole{
 					{
 						RoleArn: "arn:aws:iam::123456789012:role/role1",
@@ -123,16 +144,16 @@ func TestGenerateYACEConfig(t *testing.T) {
 					},
 				},
 				SearchTags: []v1alpha1.TagemonTag{
-					{Key: "Environment", Value: "production"},
-					{Key: "Team", Value: "platform"},
+					{Key: tagKeyEnvironment, Value: "production"},
+					{Key: tagKeyTeam, Value: "platform"},
 				},
-				Statistics:       []v1alpha1.Statistics{"Average", "Sum"},
+				Statistics:       []v1alpha1.Statistics{statAverage, statSum},
 				Period:           int32Ptr(300),
 				ScrapingInterval: int32Ptr(3600),
 				Metrics: []v1alpha1.TagemonMetric{
 					{
-						Name:       "CPUUtilization",
-						Statistics: []v1alpha1.Statistics{"Maximum"},
+						Name:       metricCPUUtilization,
+						Statistics: []v1alpha1.Statistics{statMaximum},
 						Period:     int32Ptr(60),
 					},
 					{Name: "DatabaseConnections"},
@@ -147,7 +168,7 @@ func TestGenerateYACEConfig(t *testing.T) {
 
 		expectedStrings := []string{
 			"type: AWS/RDS",
-			"us-west-2",
+			regionUSWest2,
 			"key: Environment",
 			"value: production",
 			"- Maximum",  // Metric-specific statistics
@@ -165,7 +186,7 @@ func TestGenerateYACEConfig(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "minimal-tagemon",
-				Namespace: "default",
+				Namespace: nsDefault,
 			},
 			Spec: v1alpha1.TagemonSpec{
 				Type:    "AWS/Lambda",
@@ -197,21 +218,21 @@ func TestGenerateYACEConfig(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "tags-tagemon",
-				Namespace: "default",
+				Namespace: nsDefault,
 			},
 			Spec: v1alpha1.TagemonSpec{
 				Type:    "AWS/EC2",
-				Regions: []v1alpha1.AWSRegion{"us-west-2"},
+				Regions: []v1alpha1.AWSRegion{regionUSWest2},
 				Roles: []v1alpha1.AWSRole{
 					{RoleArn: "arn:aws:iam::123456789012:role/ec2-role"},
 				},
 				Metrics: []v1alpha1.TagemonMetric{
-					{Name: "CPUUtilization"},
+					{Name: metricCPUUtilization},
 				},
 				ExportedTagsOnMetrics: []v1alpha1.ExportedTag{
-					{Key: "Environment"},
-					{Key: "Team"},
-					{Key: "Project"},
+					{Key: tagKeyEnvironment},
+					{Key: tagKeyTeam},
+					{Key: tagKeyProject},
 				},
 			},
 		}
@@ -222,7 +243,7 @@ func TestGenerateYACEConfig(t *testing.T) {
 		}
 
 		// Verify that the config contains the default "Name" tag plus additional tags
-		expectedTags := []string{"Name", "Environment", "Team", "Project"}
+		expectedTags := []string{"Name", tagKeyEnvironment, tagKeyTeam, tagKeyProject}
 		for _, tag := range expectedTags {
 			if !strings.Contains(config, "- "+tag) {
 				t.Errorf("expected config to contain exported tag '%s', got:\n%s", tag, config)
@@ -239,16 +260,16 @@ func TestGenerateYACEConfig(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "name-only-tagemon",
-				Namespace: "default",
+				Namespace: nsDefault,
 			},
 			Spec: v1alpha1.TagemonSpec{
-				Type:    "AWS/S3",
-				Regions: []v1alpha1.AWSRegion{"us-east-1"},
+				Type:    awsServiceS3,
+				Regions: []v1alpha1.AWSRegion{regionUSEast1},
 				Roles: []v1alpha1.AWSRole{
 					{RoleArn: "arn:aws:iam::123456789012:role/s3-role"},
 				},
 				Metrics: []v1alpha1.TagemonMetric{
-					{Name: "BucketSizeBytes"},
+					{Name: metricBucketSizeBytes},
 				},
 				// ExportedTagsOnMetrics is nil/empty, should only have "Name"
 			},
@@ -265,7 +286,7 @@ func TestGenerateYACEConfig(t *testing.T) {
 		}
 
 		// Should not contain additional tags when none specified
-		unwantedTags := []string{"Environment", "Team", "Project"}
+		unwantedTags := []string{tagKeyEnvironment, tagKeyTeam, tagKeyProject}
 		for _, tag := range unwantedTags {
 			if strings.Contains(config, "- "+tag) {
 				t.Errorf("expected config to NOT contain tag '%s' when not specified, got:\n%s", tag, config)
@@ -307,10 +328,10 @@ func TestSetMetricOrGlobalValue(t *testing.T) {
 
 	t.Run("should handle statistics arrays", func(t *testing.T) {
 		metric := &v1alpha1.TagemonMetric{
-			Statistics: []v1alpha1.Statistics{"Average", "Sum"},
+			Statistics: []v1alpha1.Statistics{statAverage, statSum},
 		}
 		spec := &v1alpha1.TagemonSpec{
-			Statistics: []v1alpha1.Statistics{"Maximum"},
+			Statistics: []v1alpha1.Statistics{statMaximum},
 		}
 		result := make(map[string]interface{})
 
@@ -323,7 +344,7 @@ func TestSetMetricOrGlobalValue(t *testing.T) {
 		if len(stats) != 2 {
 			t.Errorf("expected 2 statistics, got %d", len(stats))
 		}
-		if stats[0] != "Average" || stats[1] != "Sum" {
+		if stats[0] != statAverage || stats[1] != statSum {
 			t.Errorf("expected [Average, Sum], got %v", stats)
 		}
 	})
@@ -448,12 +469,12 @@ func TestBuildResourceName(t *testing.T) {
 	t.Run("should build resource name with service type and suffix", func(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-tagemon",
-				Namespace: "default",
+				Name:      nameTestTagemon,
+				Namespace: nsDefault,
 				UID:       "test-uid-123",
 			},
 			Spec: v1alpha1.TagemonSpec{
-				Type: "AWS/S3",
+				Type: awsServiceS3,
 			},
 		}
 
@@ -477,21 +498,21 @@ func TestBuildResourceName(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test",
-				Namespace: "default",
+				Namespace: nsDefault,
 				UID:       "test-uid-456",
 			},
 			Spec: v1alpha1.TagemonSpec{
-				Type: "AWS/RDS",
+				Type: awsServiceRDS,
 			},
 		}
 
 		configMapName := reconciler.buildResourceName(tagemon, "yace-cm")
-		deploymentName := reconciler.buildResourceName(tagemon, "yace")
+		deploymentName := reconciler.buildResourceName(tagemon, yaceName)
 
 		if !strings.Contains(configMapName, "yace-cm") {
 			t.Errorf("expected configmap name to contain yace-cm, got %s", configMapName)
 		}
-		if !strings.Contains(deploymentName, "yace") && !strings.Contains(deploymentName, "yace-cm") {
+		if !strings.Contains(deploymentName, yaceName) && !strings.Contains(deploymentName, "yace-cm") {
 			t.Errorf("expected deployment name to contain yace, got %s", deploymentName)
 		}
 
@@ -504,16 +525,16 @@ func TestBuildResourceName(t *testing.T) {
 		shortTagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "a",
-				Namespace: "default",
+				Namespace: nsDefault,
 				UID:       "short-uid",
 			},
-			Spec: v1alpha1.TagemonSpec{Type: "AWS/S3"},
+			Spec: v1alpha1.TagemonSpec{Type: awsServiceS3},
 		}
 
 		longTagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "very-long-tagemon-name-that-exceeds-normal-lengths",
-				Namespace: "default",
+				Namespace: nsDefault,
 				UID:       "very-long-uid-that-is-much-longer-than-typical",
 			},
 			Spec: v1alpha1.TagemonSpec{Type: "AWS/ElasticLoadBalancing"},
@@ -534,7 +555,7 @@ func TestBuildResourceName(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test/name",
-				Namespace: "default",
+				Namespace: nsDefault,
 				UID:       "test-uid-789",
 			},
 			Spec: v1alpha1.TagemonSpec{
@@ -559,12 +580,12 @@ func TestBuildResourceName(t *testing.T) {
 	t.Run("should handle NamePrefix when specified", func(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-tagemon",
-				Namespace: "default",
+				Name:      nameTestTagemon,
+				Namespace: nsDefault,
 				UID:       "test-uid-999",
 			},
 			Spec: v1alpha1.TagemonSpec{
-				Type:       "AWS/S3",
+				Type:       awsServiceS3,
 				NamePrefix: "custom-prefix",
 			},
 		}
@@ -590,20 +611,20 @@ func TestHandleCreate(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "test-create",
-				Namespace:  "default",
+				Namespace:  nsDefault,
 				Generation: 1,
 			},
 			Spec: v1alpha1.TagemonSpec{
-				Type:    "AWS/S3",
-				Regions: []v1alpha1.AWSRegion{"us-east-1"},
+				Type:    awsServiceS3,
+				Regions: []v1alpha1.AWSRegion{regionUSEast1},
 				Roles: []v1alpha1.AWSRole{
-					{RoleArn: "arn:aws:iam::123456789012:role/test-role"},
+					{RoleArn: testRoleARN},
 				},
-				Statistics:       []v1alpha1.Statistics{"Sum"},
+				Statistics:       []v1alpha1.Statistics{statSum},
 				Period:           int32Ptr(300),
 				ScrapingInterval: int32Ptr(3600),
 				Metrics: []v1alpha1.TagemonMetric{
-					{Name: "BucketSizeBytes"},
+					{Name: metricBucketSizeBytes},
 				},
 			},
 			Status: v1alpha1.TagemonStatus{
@@ -620,7 +641,7 @@ func TestHandleCreate(t *testing.T) {
 		reconciler := &Reconciler{
 			Client:      fakeClient,
 			Scheme:      scheme,
-			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			Config:      &confighandler.Config{ServiceAccountName: saTestSA},
 			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
@@ -676,20 +697,20 @@ func TestHandleCreate(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "uuid-test",
-				Namespace:  "default",
+				Namespace:  nsDefault,
 				Generation: 1,
 			},
 			Spec: v1alpha1.TagemonSpec{
-				Type:    "AWS/S3",
-				Regions: []v1alpha1.AWSRegion{"us-east-1"},
+				Type:    awsServiceS3,
+				Regions: []v1alpha1.AWSRegion{regionUSEast1},
 				Roles: []v1alpha1.AWSRole{
-					{RoleArn: "arn:aws:iam::123456789012:role/test-role"},
+					{RoleArn: testRoleARN},
 				},
-				Statistics:       []v1alpha1.Statistics{"Sum"},
+				Statistics:       []v1alpha1.Statistics{statSum},
 				Period:           int32Ptr(300),
 				ScrapingInterval: int32Ptr(3600),
 				Metrics: []v1alpha1.TagemonMetric{
-					{Name: "BucketSizeBytes"},
+					{Name: metricBucketSizeBytes},
 				},
 			},
 			Status: v1alpha1.TagemonStatus{
@@ -706,7 +727,7 @@ func TestHandleCreate(t *testing.T) {
 		reconciler := &Reconciler{
 			Client:      fakeClient,
 			Scheme:      scheme,
-			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			Config:      &confighandler.Config{ServiceAccountName: saTestSA},
 			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
@@ -740,19 +761,19 @@ func TestHandleCreate(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "create-failure-test",
-				Namespace: "default",
+				Namespace: nsDefault,
 			},
 			Spec: v1alpha1.TagemonSpec{
-				Type:    "AWS/S3",
-				Regions: []v1alpha1.AWSRegion{"us-east-1"},
+				Type:    awsServiceS3,
+				Regions: []v1alpha1.AWSRegion{regionUSEast1},
 				Roles: []v1alpha1.AWSRole{
-					{RoleArn: "arn:aws:iam::123456789012:role/test-role"},
+					{RoleArn: testRoleARN},
 				},
-				Statistics:       []v1alpha1.Statistics{"Sum"},
+				Statistics:       []v1alpha1.Statistics{statSum},
 				Period:           int32Ptr(300),
 				ScrapingInterval: int32Ptr(3600),
 				Metrics: []v1alpha1.TagemonMetric{
-					{Name: "BucketSizeBytes"},
+					{Name: metricBucketSizeBytes},
 				},
 			},
 		}
@@ -760,7 +781,7 @@ func TestHandleCreate(t *testing.T) {
 		reconciler := &Reconciler{
 			Client:      fake.NewClientBuilder().WithScheme(scheme).Build(),
 			Scheme:      scheme,
-			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			Config:      &confighandler.Config{ServiceAccountName: saTestSA},
 			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
@@ -771,7 +792,7 @@ func TestHandleCreate(t *testing.T) {
 				Namespace: tagemon.Namespace,
 			},
 			Data: map[string]string{
-				"config.yml": "existing-config",
+				yaceConfigKey: "existing-config",
 			},
 		}
 
@@ -804,20 +825,20 @@ func TestHandleModify(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test-modify",
-				Namespace: "default",
+				Namespace: nsDefault,
 				UID:       "modify-uid-456",
 			},
 			Spec: v1alpha1.TagemonSpec{
-				Type:    "AWS/RDS",
-				Regions: []v1alpha1.AWSRegion{"us-east-1"},
+				Type:    awsServiceRDS,
+				Regions: []v1alpha1.AWSRegion{regionUSEast1},
 				Roles: []v1alpha1.AWSRole{
-					{RoleArn: "arn:aws:iam::123456789012:role/test-role"},
+					{RoleArn: testRoleARN},
 				},
-				Statistics:       []v1alpha1.Statistics{"Average"},
+				Statistics:       []v1alpha1.Statistics{statAverage},
 				Period:           int32Ptr(300),
 				ScrapingInterval: int32Ptr(3600),
 				Metrics: []v1alpha1.TagemonMetric{
-					{Name: "CPUUtilization"},
+					{Name: metricCPUUtilization},
 				},
 			},
 		}
@@ -825,7 +846,7 @@ func TestHandleModify(t *testing.T) {
 		reconciler := &Reconciler{
 			Client:      fake.NewClientBuilder().WithScheme(scheme).Build(),
 			Scheme:      scheme,
-			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			Config:      &confighandler.Config{ServiceAccountName: saTestSA},
 			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
@@ -836,11 +857,11 @@ func TestHandleModify(t *testing.T) {
 				Namespace: tagemon.Namespace,
 			},
 			Data: map[string]string{
-				"config.yml": "old-config",
+				yaceConfigKey: "old-config",
 			},
 		}
 
-		deploymentName := reconciler.buildResourceName(tagemon, "yace")
+		deploymentName := reconciler.buildResourceName(tagemon, yaceName)
 		existingDeployment := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      deploymentName,
@@ -854,7 +875,7 @@ func TestHandleModify(t *testing.T) {
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
 							{
-								Name:  "yace",
+								Name:  yaceName,
 								Image: "prometheuscommunity/yet-another-cloudwatch-exporter:v0.62.1",
 							},
 						},
@@ -893,7 +914,7 @@ func TestHandleModify(t *testing.T) {
 			t.Fatalf("failed to get updated ConfigMap: %v", err)
 		}
 
-		if updatedConfigMap.Data["config.yml"] == "old-config" {
+		if updatedConfigMap.Data[yaceConfigKey] == "old-config" {
 			t.Error("expected ConfigMap to be updated with new config")
 		}
 
@@ -922,20 +943,20 @@ func TestHandleModify(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "no-change-test",
-				Namespace: "default",
+				Namespace: nsDefault,
 				UID:       "nochange-uid-789",
 			},
 			Spec: v1alpha1.TagemonSpec{
-				Type:    "AWS/RDS",
-				Regions: []v1alpha1.AWSRegion{"us-east-1"},
+				Type:    awsServiceRDS,
+				Regions: []v1alpha1.AWSRegion{regionUSEast1},
 				Roles: []v1alpha1.AWSRole{
-					{RoleArn: "arn:aws:iam::123456789012:role/test-role"},
+					{RoleArn: testRoleARN},
 				},
-				Statistics:       []v1alpha1.Statistics{"Average"},
+				Statistics:       []v1alpha1.Statistics{statAverage},
 				Period:           int32Ptr(300),
 				ScrapingInterval: int32Ptr(3600),
 				Metrics: []v1alpha1.TagemonMetric{
-					{Name: "CPUUtilization"},
+					{Name: metricCPUUtilization},
 				},
 			},
 		}
@@ -949,7 +970,7 @@ func TestHandleModify(t *testing.T) {
 		reconciler := &Reconciler{
 			Client:      fakeClient,
 			Scheme:      scheme,
-			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			Config:      &confighandler.Config{ServiceAccountName: saTestSA},
 			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
@@ -965,7 +986,7 @@ func TestHandleModify(t *testing.T) {
 				Namespace: tagemon.Namespace,
 			},
 			Data: map[string]string{
-				"config.yml": currentConfig,
+				yaceConfigKey: currentConfig,
 			},
 		}
 
@@ -995,7 +1016,7 @@ func TestHandleModify(t *testing.T) {
 			t.Fatalf("failed to get ConfigMap: %v", err)
 		}
 
-		if unchangedConfigMap.Data["config.yml"] != currentConfig {
+		if unchangedConfigMap.Data[yaceConfigKey] != currentConfig {
 			t.Error("expected ConfigMap to remain unchanged")
 		}
 	})
@@ -1008,23 +1029,23 @@ func TestHandleModify(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "update-failure-test",
-				Namespace: "default",
+				Namespace: nsDefault,
 			},
 			Spec: v1alpha1.TagemonSpec{
-				Type:    "AWS/S3",
-				Regions: []v1alpha1.AWSRegion{"us-east-1"},
+				Type:    awsServiceS3,
+				Regions: []v1alpha1.AWSRegion{regionUSEast1},
 				Roles: []v1alpha1.AWSRole{
-					{RoleArn: "arn:aws:iam::123456789012:role/test-role"},
+					{RoleArn: testRoleARN},
 				},
-				Statistics:       []v1alpha1.Statistics{"Sum"},
+				Statistics:       []v1alpha1.Statistics{statSum},
 				Period:           int32Ptr(300),
 				ScrapingInterval: int32Ptr(3600),
 				Metrics: []v1alpha1.TagemonMetric{
-					{Name: "BucketSizeBytes"},
+					{Name: metricBucketSizeBytes},
 				},
 			},
 			Status: v1alpha1.TagemonStatus{
-				ConfigMapName: "non-existent-configmap",
+				ConfigMapName: nameNonExistentConfigMap,
 			},
 		}
 
@@ -1037,7 +1058,7 @@ func TestHandleModify(t *testing.T) {
 		reconciler := &Reconciler{
 			Client:      fakeClient,
 			Scheme:      scheme,
-			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			Config:      &confighandler.Config{ServiceAccountName: saTestSA},
 			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
@@ -1062,15 +1083,15 @@ func TestHandleDelete(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "test-delete",
-				Namespace:  "default",
+				Namespace:  nsDefault,
 				UID:        "delete-uid-123",
 				Finalizers: []string{finalizerName},
 			},
 			Spec: v1alpha1.TagemonSpec{
-				Type:    "AWS/S3",
-				Regions: []v1alpha1.AWSRegion{"us-east-1"},
+				Type:    awsServiceS3,
+				Regions: []v1alpha1.AWSRegion{regionUSEast1},
 				Roles: []v1alpha1.AWSRole{
-					{RoleArn: "arn:aws:iam::123456789012:role/test-role"},
+					{RoleArn: testRoleARN},
 				},
 			},
 		}
@@ -1078,12 +1099,12 @@ func TestHandleDelete(t *testing.T) {
 		reconciler := &Reconciler{
 			Client:      fake.NewClientBuilder().WithScheme(scheme).Build(),
 			Scheme:      scheme,
-			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			Config:      &confighandler.Config{ServiceAccountName: saTestSA},
 			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
 		configMapName := reconciler.buildResourceName(tagemon, "yace-cm")
-		deploymentName := reconciler.buildResourceName(tagemon, "yace")
+		deploymentName := reconciler.buildResourceName(tagemon, yaceName)
 
 		existingConfigMap := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1091,7 +1112,7 @@ func TestHandleDelete(t *testing.T) {
 				Namespace: tagemon.Namespace,
 			},
 			Data: map[string]string{
-				"config.yml": "test-config",
+				yaceConfigKey: "test-config",
 			},
 		}
 
@@ -1105,7 +1126,7 @@ func TestHandleDelete(t *testing.T) {
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
 							{
-								Name:  "yace",
+								Name:  yaceName,
 								Image: "test-image",
 							},
 						},
@@ -1166,14 +1187,14 @@ func TestHandleDelete(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "missing-resources-test",
-				Namespace:  "default",
+				Namespace:  nsDefault,
 				Finalizers: []string{finalizerName},
 			},
 			Spec: v1alpha1.TagemonSpec{
-				Type: "AWS/S3",
+				Type: awsServiceS3,
 			},
 			Status: v1alpha1.TagemonStatus{
-				ConfigMapName:  "non-existent-configmap",
+				ConfigMapName:  nameNonExistentConfigMap,
 				DeploymentName: "non-existent-deployment",
 			},
 		}
@@ -1187,7 +1208,7 @@ func TestHandleDelete(t *testing.T) {
 		reconciler := &Reconciler{
 			Client:      fakeClient,
 			Scheme:      scheme,
-			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			Config:      &confighandler.Config{ServiceAccountName: saTestSA},
 			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
@@ -1214,11 +1235,11 @@ func TestHandleDelete(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "empty-status-test",
-				Namespace:  "default",
+				Namespace:  nsDefault,
 				Finalizers: []string{finalizerName},
 			},
 			Spec: v1alpha1.TagemonSpec{
-				Type: "AWS/S3",
+				Type: awsServiceS3,
 			},
 			Status: v1alpha1.TagemonStatus{},
 		}
@@ -1232,7 +1253,7 @@ func TestHandleDelete(t *testing.T) {
 		reconciler := &Reconciler{
 			Client:      fakeClient,
 			Scheme:      scheme,
-			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			Config:      &confighandler.Config{ServiceAccountName: saTestSA},
 			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
@@ -1264,21 +1285,21 @@ func TestCreateConfigMap(t *testing.T) {
 
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-configmap",
-				Namespace: "default",
+				Name:      nameTestConfigMap,
+				Namespace: nsDefault,
 				UID:       "test-uid-123",
 			},
 			Spec: v1alpha1.TagemonSpec{
-				Type:    "AWS/S3",
-				Regions: []v1alpha1.AWSRegion{"us-east-1"},
+				Type:    awsServiceS3,
+				Regions: []v1alpha1.AWSRegion{regionUSEast1},
 				Roles: []v1alpha1.AWSRole{
-					{RoleArn: "arn:aws:iam::123456789012:role/test-role"},
+					{RoleArn: testRoleARN},
 				},
-				Statistics:       []v1alpha1.Statistics{"Sum"},
+				Statistics:       []v1alpha1.Statistics{statSum},
 				Period:           int32Ptr(300),
 				ScrapingInterval: int32Ptr(3600),
 				Metrics: []v1alpha1.TagemonMetric{
-					{Name: "BucketSizeBytes"},
+					{Name: metricBucketSizeBytes},
 				},
 			},
 			Status: v1alpha1.TagemonStatus{
@@ -1290,7 +1311,7 @@ func TestCreateConfigMap(t *testing.T) {
 		reconciler := &Reconciler{
 			Client:      fakeClient,
 			Scheme:      scheme,
-			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			Config:      &confighandler.Config{ServiceAccountName: saTestSA},
 			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
@@ -1321,7 +1342,7 @@ func TestCreateConfigMap(t *testing.T) {
 			t.Errorf("expected ConfigMap name to contain service type and suffix, got %s", cm.Name)
 		}
 
-		if config, exists := cm.Data["config.yml"]; !exists {
+		if config, exists := cm.Data[yaceConfigKey]; !exists {
 			t.Error("expected ConfigMap to have config.yml key")
 		} else if config != yaceConfig {
 			t.Error("expected ConfigMap data to match generated YACE config")
@@ -1350,21 +1371,21 @@ func TestCreateConfigMap(t *testing.T) {
 				UID:       "complex-uid-456",
 			},
 			Spec: v1alpha1.TagemonSpec{
-				Type:       "AWS/RDS",
+				Type:       awsServiceRDS,
 				NamePrefix: "prod",
-				Regions:    []v1alpha1.AWSRegion{"us-east-1", "us-west-2"},
+				Regions:    []v1alpha1.AWSRegion{regionUSEast1, regionUSWest2},
 				Roles: []v1alpha1.AWSRole{
 					{
 						RoleArn: "arn:aws:iam::123456789012:role/role1",
 					},
 				},
 				SearchTags: []v1alpha1.TagemonTag{
-					{Key: "Environment", Value: "production"},
+					{Key: tagKeyEnvironment, Value: "production"},
 				},
 				Metrics: []v1alpha1.TagemonMetric{
 					{
-						Name:       "CPUUtilization",
-						Statistics: []v1alpha1.Statistics{"Average", "Maximum"},
+						Name:       metricCPUUtilization,
+						Statistics: []v1alpha1.Statistics{statAverage, statMaximum},
 						Period:     int32Ptr(60),
 					},
 				},
@@ -1378,7 +1399,7 @@ func TestCreateConfigMap(t *testing.T) {
 		reconciler := &Reconciler{
 			Client:      fakeClient,
 			Scheme:      scheme,
-			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			Config:      &confighandler.Config{ServiceAccountName: saTestSA},
 			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
@@ -1408,10 +1429,10 @@ func TestCreateConfigMap(t *testing.T) {
 			t.Errorf("expected ConfigMap name to start with NamePrefix, got %s", cm.Name)
 		}
 
-		config := cm.Data["config.yml"]
+		config := cm.Data[yaceConfigKey]
 		expectedElements := []string{
-			"AWS/RDS",
-			"us-west-2",
+			awsServiceRDS,
+			regionUSWest2,
 			"key: Environment",
 			"value: production",
 			"- Average",
@@ -1435,16 +1456,16 @@ func TestCreateDeployment(t *testing.T) {
 
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-deployment",
-				Namespace: "default",
+				Name:      nameTestDeployment,
+				Namespace: nsDefault,
 				UID:       "test-uid-789",
 			},
 			Spec: v1alpha1.TagemonSpec{
-				Type: "AWS/S3",
+				Type: awsServiceS3,
 			},
 			Status: v1alpha1.TagemonStatus{
 				DeploymentID:  "test-deployment-id",
-				ConfigMapName: "test-configmap",
+				ConfigMapName: nameTestConfigMap,
 			},
 		}
 
@@ -1452,7 +1473,7 @@ func TestCreateDeployment(t *testing.T) {
 		reconciler := &Reconciler{
 			Client:      fakeClient,
 			Scheme:      scheme,
-			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			Config:      &confighandler.Config{ServiceAccountName: saTestSA},
 			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
@@ -1474,7 +1495,7 @@ func TestCreateDeployment(t *testing.T) {
 
 		dep := deployments.Items[0]
 
-		if !strings.Contains(dep.Name, "s3") || !strings.Contains(dep.Name, "yace") {
+		if !strings.Contains(dep.Name, "s3") || !strings.Contains(dep.Name, yaceName) {
 			t.Errorf("expected Deployment name to contain service type and suffix, got %s", dep.Name)
 		}
 
@@ -1490,7 +1511,7 @@ func TestCreateDeployment(t *testing.T) {
 		}
 
 		container := containers[0]
-		if container.Name != "yace" {
+		if container.Name != yaceName {
 			t.Errorf("expected container name to be 'yace', got %s", container.Name)
 		}
 
@@ -1516,11 +1537,11 @@ func TestCreateDeployment(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "resource-deployment",
-				Namespace: "default",
+				Namespace: nsDefault,
 				UID:       "resource-uid-999",
 			},
 			Spec: v1alpha1.TagemonSpec{
-				Type: "AWS/RDS",
+				Type: awsServiceRDS,
 				PodResources: &v1alpha1.PodResources{
 					Requests: corev1.ResourceList{
 						corev1.ResourceCPU:    resource.MustParse("100m"),
@@ -1542,7 +1563,7 @@ func TestCreateDeployment(t *testing.T) {
 		reconciler := &Reconciler{
 			Client:      fakeClient,
 			Scheme:      scheme,
-			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			Config:      &confighandler.Config{ServiceAccountName: saTestSA},
 			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
@@ -1586,19 +1607,19 @@ func TestUpdateConfigMap(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "update-test",
-				Namespace: "default",
+				Namespace: nsDefault,
 				UID:       "update-uid-123",
 			},
 			Spec: v1alpha1.TagemonSpec{
-				Type:    "AWS/S3",
-				Regions: []v1alpha1.AWSRegion{"us-east-1"},
+				Type:    awsServiceS3,
+				Regions: []v1alpha1.AWSRegion{regionUSEast1},
 				Roles: []v1alpha1.AWSRole{
-					{RoleArn: "arn:aws:iam::123456789012:role/test-role"},
+					{RoleArn: testRoleARN},
 				},
-				Statistics: []v1alpha1.Statistics{"Sum"},
+				Statistics: []v1alpha1.Statistics{statSum},
 				Period:     int32Ptr(300),
 				Metrics: []v1alpha1.TagemonMetric{
-					{Name: "BucketSizeBytes"},
+					{Name: metricBucketSizeBytes},
 				},
 			},
 		}
@@ -1606,7 +1627,7 @@ func TestUpdateConfigMap(t *testing.T) {
 		reconciler := &Reconciler{
 			Client:      fake.NewClientBuilder().WithScheme(scheme).Build(),
 			Scheme:      scheme,
-			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			Config:      &confighandler.Config{ServiceAccountName: saTestSA},
 			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
@@ -1617,7 +1638,7 @@ func TestUpdateConfigMap(t *testing.T) {
 				Namespace: tagemon.Namespace,
 			},
 			Data: map[string]string{
-				"config.yml": "old-config-content",
+				yaceConfigKey: "old-config-content",
 			},
 		}
 
@@ -1650,12 +1671,12 @@ func TestUpdateConfigMap(t *testing.T) {
 			t.Fatalf("failed to get updated ConfigMap: %v", err)
 		}
 
-		if updatedConfigMap.Data["config.yml"] == "old-config-content" {
+		if updatedConfigMap.Data[yaceConfigKey] == "old-config-content" {
 			t.Error("expected ConfigMap content to be updated")
 		}
 
-		newConfig := updatedConfigMap.Data["config.yml"]
-		if !strings.Contains(newConfig, "AWS/S3") {
+		newConfig := updatedConfigMap.Data[yaceConfigKey]
+		if !strings.Contains(newConfig, awsServiceS3) {
 			t.Error("expected updated config to contain service type")
 		}
 	})
@@ -1668,19 +1689,19 @@ func TestUpdateConfigMap(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "no-change-test",
-				Namespace: "default",
+				Namespace: nsDefault,
 				UID:       "nochange-uid-456",
 			},
 			Spec: v1alpha1.TagemonSpec{
-				Type:    "AWS/RDS",
-				Regions: []v1alpha1.AWSRegion{"us-east-1"},
+				Type:    awsServiceRDS,
+				Regions: []v1alpha1.AWSRegion{regionUSEast1},
 				Roles: []v1alpha1.AWSRole{
-					{RoleArn: "arn:aws:iam::123456789012:role/test-role"},
+					{RoleArn: testRoleARN},
 				},
-				Statistics: []v1alpha1.Statistics{"Average"},
+				Statistics: []v1alpha1.Statistics{statAverage},
 				Period:     int32Ptr(300),
 				Metrics: []v1alpha1.TagemonMetric{
-					{Name: "CPUUtilization"},
+					{Name: metricCPUUtilization},
 				},
 			},
 		}
@@ -1688,7 +1709,7 @@ func TestUpdateConfigMap(t *testing.T) {
 		reconciler := &Reconciler{
 			Client:      fake.NewClientBuilder().WithScheme(scheme).Build(),
 			Scheme:      scheme,
-			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			Config:      &confighandler.Config{ServiceAccountName: saTestSA},
 			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
@@ -1704,7 +1725,7 @@ func TestUpdateConfigMap(t *testing.T) {
 				Namespace: tagemon.Namespace,
 			},
 			Data: map[string]string{
-				"config.yml": currentConfig,
+				yaceConfigKey: currentConfig,
 			},
 		}
 
@@ -1737,7 +1758,7 @@ func TestUpdateConfigMap(t *testing.T) {
 			t.Fatalf("failed to get ConfigMap: %v", err)
 		}
 
-		if unchangedConfigMap.Data["config.yml"] != currentConfig {
+		if unchangedConfigMap.Data[yaceConfigKey] != currentConfig {
 			t.Error("expected ConfigMap to remain unchanged")
 		}
 	})
@@ -1752,20 +1773,20 @@ func TestDeleteConfigMap(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "delete-cm-test",
-				Namespace: "default",
+				Namespace: nsDefault,
 			},
 			Status: v1alpha1.TagemonStatus{
-				ConfigMapName: "test-configmap",
+				ConfigMapName: nameTestConfigMap,
 			},
 		}
 
 		existingConfigMap := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-configmap",
+				Name:      nameTestConfigMap,
 				Namespace: tagemon.Namespace,
 			},
 			Data: map[string]string{
-				"config.yml": "test-config",
+				yaceConfigKey: "test-config",
 			},
 		}
 
@@ -1777,7 +1798,7 @@ func TestDeleteConfigMap(t *testing.T) {
 		reconciler := &Reconciler{
 			Client:      fakeClient,
 			Scheme:      scheme,
-			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			Config:      &confighandler.Config{ServiceAccountName: saTestSA},
 			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
@@ -1790,7 +1811,7 @@ func TestDeleteConfigMap(t *testing.T) {
 
 		deletedConfigMap := &corev1.ConfigMap{}
 		err = fakeClient.Get(ctx, types.NamespacedName{
-			Name:      "test-configmap",
+			Name:      nameTestConfigMap,
 			Namespace: tagemon.Namespace,
 		}, deletedConfigMap)
 		if err == nil {
@@ -1806,10 +1827,10 @@ func TestDeleteConfigMap(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "missing-cm-test",
-				Namespace: "default",
+				Namespace: nsDefault,
 			},
 			Status: v1alpha1.TagemonStatus{
-				ConfigMapName: "non-existent-configmap",
+				ConfigMapName: nameNonExistentConfigMap,
 			},
 		}
 
@@ -1817,7 +1838,7 @@ func TestDeleteConfigMap(t *testing.T) {
 		reconciler := &Reconciler{
 			Client:      fakeClient,
 			Scheme:      scheme,
-			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			Config:      &confighandler.Config{ServiceAccountName: saTestSA},
 			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
@@ -1839,16 +1860,16 @@ func TestDeleteDeployment(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "delete-dep-test",
-				Namespace: "default",
+				Namespace: nsDefault,
 			},
 			Status: v1alpha1.TagemonStatus{
-				DeploymentName: "test-deployment",
+				DeploymentName: nameTestDeployment,
 			},
 		}
 
 		existingDeployment := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-deployment",
+				Name:      nameTestDeployment,
 				Namespace: tagemon.Namespace,
 			},
 			Spec: appsv1.DeploymentSpec{
@@ -1856,7 +1877,7 @@ func TestDeleteDeployment(t *testing.T) {
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
 							{
-								Name:  "yace",
+								Name:  yaceName,
 								Image: "test-image",
 							},
 						},
@@ -1873,7 +1894,7 @@ func TestDeleteDeployment(t *testing.T) {
 		reconciler := &Reconciler{
 			Client:      fakeClient,
 			Scheme:      scheme,
-			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			Config:      &confighandler.Config{ServiceAccountName: saTestSA},
 			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
@@ -1886,7 +1907,7 @@ func TestDeleteDeployment(t *testing.T) {
 
 		deletedDeployment := &appsv1.Deployment{}
 		err = fakeClient.Get(ctx, types.NamespacedName{
-			Name:      "test-deployment",
+			Name:      nameTestDeployment,
 			Namespace: tagemon.Namespace,
 		}, deletedDeployment)
 		if err == nil {
@@ -1902,7 +1923,7 @@ func TestDeleteDeployment(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "missing-dep-test",
-				Namespace: "default",
+				Namespace: nsDefault,
 			},
 			Status: v1alpha1.TagemonStatus{
 				DeploymentName: "non-existent-deployment",
@@ -1913,7 +1934,7 @@ func TestDeleteDeployment(t *testing.T) {
 		reconciler := &Reconciler{
 			Client:      fakeClient,
 			Scheme:      scheme,
-			Config:      &confighandler.Config{ServiceAccountName: "test-sa"},
+			Config:      &confighandler.Config{ServiceAccountName: saTestSA},
 			TagsHandler: nil, // No tagshandler needed for this test
 		}
 
@@ -1931,7 +1952,7 @@ func TestFinalizerHandling(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "finalizer-test",
-				Namespace: "default",
+				Namespace: nsDefault,
 			},
 		}
 
@@ -1961,7 +1982,7 @@ func TestFinalizerHandling(t *testing.T) {
 		tagemon := &v1alpha1.Tagemon{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "finalizer-remove-test",
-				Namespace:  "default",
+				Namespace:  nsDefault,
 				Finalizers: []string{finalizerName, "other.finalizer"},
 			},
 		}
