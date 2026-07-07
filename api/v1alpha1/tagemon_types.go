@@ -236,6 +236,4 @@ type TagemonList struct {
 	Items           []Tagemon `json:"items"`
 }
 
-func init() {
-	SchemeBuilder.Register(&Tagemon{}, &TagemonList{})
-}
+// Type registration is handled by addKnownTypes in groupversion_info.go.
