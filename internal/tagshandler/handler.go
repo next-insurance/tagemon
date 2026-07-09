@@ -23,6 +23,12 @@ import (
 	"github.com/next-insurance/tagemon/internal/confighandler"
 )
 
+const (
+	labelAccountID    = "account_id"
+	labelResourceType = "resource_type"
+	tagKeyName        = "Name"
+)
+
 type Handler struct {
 	client                         client.Client
 	metricsGauges                  map[string]*prometheus.GaugeVec
@@ -172,7 +178,7 @@ func (h *Handler) buildTagPolicy(tagemons []tagemonv1alpha1.Tagemon) (*policyTyp
 			var mandatoryKeys []string
 			validations := make(map[string]*policyTypes.Validation)
 
-			mandatoryKeys = append(mandatoryKeys, "Name")
+			mandatoryKeys = append(mandatoryKeys, tagKeyName)
 
 			for _, exportedTag := range tagemon.Spec.ExportedTagsOnMetrics {
 				isRequired := false
@@ -329,7 +335,7 @@ func (h *Handler) getOrCreateMetric(tagKey string, exportedTags []tagemonv1alpha
 		return gauge
 	}
 
-	labelNames := []string{"tag_Name", "account_id", "type"}
+	labelNames := []string{"tag_Name", labelAccountID, "type"}
 	for _, exportedTag := range exportedTags {
 		labelNames = append(labelNames, "tag_"+exportedTag.Key)
 	}
@@ -362,7 +368,7 @@ func (h *Handler) getOrCreateNonCompliantMetric() *prometheus.GaugeVec {
 		return gauge
 	}
 
-	labelNames := []string{"resource_type", "account_id"}
+	labelNames := []string{labelResourceType, labelAccountID}
 	for labelName := range h.nonCompliantMetricCustomLabels {
 		labelNames = append(labelNames, labelName)
 	}
@@ -460,7 +466,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 // =============================================================================
 
 func (h *Handler) extractResourceName(resourceARN string, tags map[string]string) string {
-	if name, exists := tags["Name"]; exists && name != "" {
+	if name, exists := tags[tagKeyName]; exists && name != "" {
 		return name
 	}
 
@@ -654,7 +660,7 @@ func (h *Handler) handleNonCompliantResource(resource interface{}, tagName, acco
 				errorValue := complianceErrorsValue.Index(i)
 
 				var errorMsg string
-				if errorValue.Kind() == reflect.Ptr {
+				if errorValue.Kind() == reflect.Pointer {
 					elem := errorValue.Elem()
 					if elem.Kind() == reflect.Struct {
 						messageField := elem.FieldByName("Message")

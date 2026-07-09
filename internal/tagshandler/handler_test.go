@@ -12,6 +12,25 @@ const (
 	testResourceTypeS3Bucket    = "s3/bucket"
 	testResourceTypeEC2Instance = "ec2/instance"
 	testNonCompliantMetricName  = "tagemon_resources_non_compliant_count"
+
+	awsResourceTypeBucket      = "bucket"
+	awsServiceEC2              = "ec2"
+	awsResourceTypeInstance    = "instance"
+	testNameEmptyList          = "empty tagemon list"
+	tagKeyMimirTenants         = "mimir_tenants"
+	testARNS3Bucket            = "arn:aws:s3:us-west-2:123456789012:bucket/test-bucket"
+	testHelpNonCompliant       = "Test gauge for non-compliant resources"
+	tagKeyEnvironment          = "Environment"
+	tagKeyTeam                 = "Team"
+	tagKeyCostCenter           = "CostCenter"
+	tagKeyApplication          = "Application"
+	tagKeyOwner                = "Owner"
+	tagKeyStorageDropThreshold = "storage_drop_mb_threshold"
+	labelEnvironment           = "environment"
+
+	testBucketName = "test-bucket"
+	valProduction  = "production"
+	valPlatform    = "platform"
 )
 
 func stringPtr(s string) *string {
@@ -44,12 +63,12 @@ func TestBuildTagPolicy(t *testing.T) {
 									{
 										Type:         tagemonv1alpha1.ThresholdTagTypeInt,
 										Key:          "retention-days",
-										ResourceType: "bucket",
+										ResourceType: awsResourceTypeBucket,
 									},
 									{
 										Type:         tagemonv1alpha1.ThresholdTagTypeBool,
 										Key:          "public",
-										ResourceType: "bucket",
+										ResourceType: awsResourceTypeBucket,
 									},
 								},
 							},
@@ -66,7 +85,7 @@ func TestBuildTagPolicy(t *testing.T) {
 				{
 					Spec: tagemonv1alpha1.TagemonSpec{
 						Type:                    "AWS/VPN",
-						ResourceExplorerService: stringPtr("ec2"),
+						ResourceExplorerService: stringPtr(awsServiceEC2),
 						Metrics: []tagemonv1alpha1.TagemonMetric{
 							{
 								Name: "TunnelState",
@@ -82,7 +101,7 @@ func TestBuildTagPolicy(t *testing.T) {
 					},
 				},
 			},
-			expectedServiceType: "ec2",
+			expectedServiceType: awsServiceEC2,
 			description:         "should use ResourceExplorerService override instead of deriving from Type",
 		},
 		{
@@ -98,7 +117,7 @@ func TestBuildTagPolicy(t *testing.T) {
 									{
 										Type:         tagemonv1alpha1.ThresholdTagTypePercentage,
 										Key:          "utilization",
-										ResourceType: "bucket",
+										ResourceType: awsResourceTypeBucket,
 									},
 								},
 							},
@@ -115,7 +134,7 @@ func TestBuildTagPolicy(t *testing.T) {
 									{
 										Type:         tagemonv1alpha1.ThresholdTagTypeInt,
 										Key:          "ttl",
-										ResourceType: "instance",
+										ResourceType: awsResourceTypeInstance,
 									},
 								},
 							},
@@ -127,7 +146,7 @@ func TestBuildTagPolicy(t *testing.T) {
 			description:         "should handle multiple service types",
 		},
 		{
-			name:                "empty tagemon list",
+			name:                testNameEmptyList,
 			tagemons:            []tagemonv1alpha1.Tagemon{},
 			expectedServiceType: "",
 			description:         "should handle empty tagemon list",
@@ -150,7 +169,7 @@ func TestBuildTagPolicy(t *testing.T) {
 									{
 										Type:         tagemonv1alpha1.ThresholdTagTypeInt,
 										Key:          "storage-threshold",
-										ResourceType: "instance",
+										ResourceType: awsResourceTypeInstance,
 									},
 								},
 							},
@@ -158,7 +177,7 @@ func TestBuildTagPolicy(t *testing.T) {
 					},
 				},
 			},
-			expectedServiceType: "ec2",
+			expectedServiceType: awsServiceEC2,
 			description:         "should handle non-existent resource types",
 		},
 		{
@@ -174,7 +193,7 @@ func TestBuildTagPolicy(t *testing.T) {
 						},
 						ExportedTagsOnMetrics: []tagemonv1alpha1.ExportedTag{
 							{
-								Key:      "mimir_tenants",
+								Key:      tagKeyMimirTenants,
 								Required: boolPtr(true),
 							},
 						},
@@ -222,11 +241,11 @@ func TestBuildTagPolicy(t *testing.T) {
 				if tt.name == "tagemon with non-existent resource type" {
 					assert.Len(t, policy.Blueprints, 2)
 
-					assert.Contains(t, policy.Resources, "ec2")
-					assert.Len(t, policy.Resources["ec2"], 2)
+					assert.Contains(t, policy.Resources, awsServiceEC2)
+					assert.Len(t, policy.Resources[awsServiceEC2], 2)
 
-					assert.Contains(t, policy.Resources["ec2"], "nonexistent-resource-type")
-					assert.Contains(t, policy.Resources["ec2"], "instance")
+					assert.Contains(t, policy.Resources[awsServiceEC2], "nonexistent-resource-type")
+					assert.Contains(t, policy.Resources[awsServiceEC2], awsResourceTypeInstance)
 
 					assert.Contains(t, policy.Blueprints, "ec2-nonexistent-resource-type-base")
 					assert.Contains(t, policy.Blueprints, "ec2-instance-base")
@@ -243,8 +262,8 @@ func TestBuildTagPolicy(t *testing.T) {
 
 					blueprint := policy.Blueprints["backup-*-base"]
 					assert.NotNil(t, blueprint.TagPolicy)
-					assert.Contains(t, blueprint.MandatoryKeys, "mimir_tenants")
-					assert.Contains(t, blueprint.MandatoryKeys, "Name")
+					assert.Contains(t, blueprint.MandatoryKeys, tagKeyMimirTenants)
+					assert.Contains(t, blueprint.MandatoryKeys, tagKeyName)
 				}
 			}
 		})
@@ -297,17 +316,17 @@ func TestHandleNonCompliantResource(t *testing.T) {
 
 	// Mock non-compliant resource
 	resource := &mockResource{
-		id:          "arn:aws:s3:us-west-2:123456789012:bucket/test-bucket",
+		id:          testARNS3Bucket,
 		isCompliant: false,
 		complianceErrors: []*mockComplianceError{
 			{Message: "Missing required tag: Environment"},
 		},
-		tags:         map[string]string{"Name": "test-bucket"},
+		tags:         map[string]string{tagKeyName: testBucketName},
 		service:      "s3",
-		resourceType: "bucket",
+		resourceType: awsResourceTypeBucket,
 	}
 
-	resourceName := "test-bucket"
+	resourceName := testBucketName
 	accountID := "123456789012"
 	resourceType := testResourceTypeS3Bucket
 
@@ -332,9 +351,9 @@ func TestHandleNonCompliantResourceWithMultipleViolations(t *testing.T) {
 			{Message: "Missing required tag: Owner"},
 			{Message: "Invalid tag value for CostCenter"},
 		},
-		tags:         map[string]string{"Name": "test-instance"},
-		service:      "ec2",
-		resourceType: "instance",
+		tags:         map[string]string{tagKeyName: "test-instance"},
+		service:      awsServiceEC2,
+		resourceType: awsResourceTypeInstance,
 	}
 
 	resourceName := "test-instance"
@@ -358,9 +377,9 @@ func TestHandleNonCompliantResourceWithNoViolationDetails(t *testing.T) {
 		id:               "arn:aws:s3:us-west-2:123456789012:bucket/empty-bucket",
 		isCompliant:      false,
 		complianceErrors: []*mockComplianceError{}, // Empty violations
-		tags:             map[string]string{"Name": "empty-bucket"},
+		tags:             map[string]string{tagKeyName: "empty-bucket"},
 		service:          "s3",
-		resourceType:     "bucket",
+		resourceType:     awsResourceTypeBucket,
 	}
 
 	resourceName := "empty-bucket"
@@ -387,9 +406,9 @@ func TestGetOrCreateNonCompliantMetric(t *testing.T) {
 	gauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: metricName,
-			Help: "Test gauge for non-compliant resources",
+			Help: testHelpNonCompliant,
 		},
-		[]string{"resource_type", "account_id"},
+		[]string{labelResourceType, labelAccountID},
 	)
 	registry.MustRegister(gauge)
 	handler.nonCompliantGauges[metricName] = gauge
@@ -411,9 +430,9 @@ func TestUpdateNonCompliantMetrics(t *testing.T) {
 	gauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: metricName + "_test2",
-			Help: "Test gauge for non-compliant resources",
+			Help: testHelpNonCompliant,
 		},
-		[]string{"resource_type", "account_id"},
+		[]string{labelResourceType, labelAccountID},
 	)
 	registry.MustRegister(gauge)
 	handler.nonCompliantGauges[metricName] = gauge
@@ -457,9 +476,9 @@ func TestUpdateNonCompliantMetricsWithZeros(t *testing.T) {
 	gauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: metricName + "_test3",
-			Help: "Test gauge for non-compliant resources",
+			Help: testHelpNonCompliant,
 		},
-		[]string{"resource_type", "account_id"},
+		[]string{labelResourceType, labelAccountID},
 	)
 	registry.MustRegister(gauge)
 	handler.nonCompliantGauges[metricName] = gauge
@@ -539,7 +558,7 @@ func TestExtractAllowedAccountIDs(t *testing.T) {
 			},
 		},
 		{
-			name:     "empty tagemon list",
+			name:     testNameEmptyList,
 			tagemons: []tagemonv1alpha1.Tagemon{},
 			expected: map[string]bool{},
 		},
@@ -594,15 +613,15 @@ func TestExtractSearchTagsFilters(t *testing.T) {
 				{
 					Spec: tagemonv1alpha1.TagemonSpec{
 						SearchTags: []tagemonv1alpha1.TagemonTag{
-							{Key: "Environment", Value: "production"},
-							{Key: "Team", Value: "platform"},
+							{Key: tagKeyEnvironment, Value: valProduction},
+							{Key: tagKeyTeam, Value: valPlatform},
 						},
 					},
 				},
 			},
 			expected: []tagemonv1alpha1.TagemonTag{
-				{Key: "Environment", Value: "production"},
-				{Key: "Team", Value: "platform"},
+				{Key: tagKeyEnvironment, Value: valProduction},
+				{Key: tagKeyTeam, Value: valPlatform},
 			},
 		},
 		{
@@ -611,27 +630,27 @@ func TestExtractSearchTagsFilters(t *testing.T) {
 				{
 					Spec: tagemonv1alpha1.TagemonSpec{
 						SearchTags: []tagemonv1alpha1.TagemonTag{
-							{Key: "Environment", Value: "production"},
+							{Key: tagKeyEnvironment, Value: valProduction},
 						},
 					},
 				},
 				{
 					Spec: tagemonv1alpha1.TagemonSpec{
 						SearchTags: []tagemonv1alpha1.TagemonTag{
-							{Key: "Team", Value: "platform"},
-							{Key: "CostCenter", Value: "engineering"},
+							{Key: tagKeyTeam, Value: valPlatform},
+							{Key: tagKeyCostCenter, Value: "engineering"},
 						},
 					},
 				},
 			},
 			expected: []tagemonv1alpha1.TagemonTag{
-				{Key: "Environment", Value: "production"},
-				{Key: "Team", Value: "platform"},
-				{Key: "CostCenter", Value: "engineering"},
+				{Key: tagKeyEnvironment, Value: valProduction},
+				{Key: tagKeyTeam, Value: valPlatform},
+				{Key: tagKeyCostCenter, Value: "engineering"},
 			},
 		},
 		{
-			name:     "empty tagemon list",
+			name:     testNameEmptyList,
 			tagemons: []tagemonv1alpha1.Tagemon{},
 			expected: []tagemonv1alpha1.TagemonTag{},
 		},
@@ -674,14 +693,14 @@ func TestExtractExportedTagsOnMetrics(t *testing.T) {
 				{
 					Spec: tagemonv1alpha1.TagemonSpec{
 						ExportedTagsOnMetrics: []tagemonv1alpha1.ExportedTag{
-							{Key: "Environment", Required: &trueVal},
-							{Key: "Application", Required: &falseVal},
+							{Key: tagKeyEnvironment, Required: &trueVal},
+							{Key: tagKeyApplication, Required: &falseVal},
 						},
 					},
 				},
 			},
 			expectedLength: 2,
-			expectedKeys:   []string{"Environment", "Application"},
+			expectedKeys:   []string{tagKeyEnvironment, tagKeyApplication},
 			description:    "should extract all exported tags from a single tagemon",
 		},
 		{
@@ -690,25 +709,25 @@ func TestExtractExportedTagsOnMetrics(t *testing.T) {
 				{
 					Spec: tagemonv1alpha1.TagemonSpec{
 						ExportedTagsOnMetrics: []tagemonv1alpha1.ExportedTag{
-							{Key: "Environment", Required: &trueVal},
+							{Key: tagKeyEnvironment, Required: &trueVal},
 						},
 					},
 				},
 				{
 					Spec: tagemonv1alpha1.TagemonSpec{
 						ExportedTagsOnMetrics: []tagemonv1alpha1.ExportedTag{
-							{Key: "Application", Required: &falseVal},
-							{Key: "Owner", Required: &trueVal},
+							{Key: tagKeyApplication, Required: &falseVal},
+							{Key: tagKeyOwner, Required: &trueVal},
 						},
 					},
 				},
 			},
 			expectedLength: 3,
-			expectedKeys:   []string{"Environment", "Application", "Owner"},
+			expectedKeys:   []string{tagKeyEnvironment, tagKeyApplication, tagKeyOwner},
 			description:    "should merge exported tags from multiple tagemons",
 		},
 		{
-			name:           "empty tagemon list",
+			name:           testNameEmptyList,
 			tagemons:       []tagemonv1alpha1.Tagemon{},
 			expectedLength: 0,
 			expectedKeys:   []string{},
@@ -733,22 +752,22 @@ func TestExtractExportedTagsOnMetrics(t *testing.T) {
 				{
 					Spec: tagemonv1alpha1.TagemonSpec{
 						ExportedTagsOnMetrics: []tagemonv1alpha1.ExportedTag{
-							{Key: "mimir_tenants", Required: &trueVal},
-							{Key: "Environment", Required: &trueVal},
+							{Key: tagKeyMimirTenants, Required: &trueVal},
+							{Key: tagKeyEnvironment, Required: &trueVal},
 						},
 					},
 				},
 				{
 					Spec: tagemonv1alpha1.TagemonSpec{
 						ExportedTagsOnMetrics: []tagemonv1alpha1.ExportedTag{
-							{Key: "mimir_tenants", Required: &falseVal}, // Duplicate key
-							{Key: "Application", Required: &trueVal},
+							{Key: tagKeyMimirTenants, Required: &falseVal}, // Duplicate key
+							{Key: tagKeyApplication, Required: &trueVal},
 						},
 					},
 				},
 			},
 			expectedLength: 3, // Should only have 3 unique keys, not 4
-			expectedKeys:   []string{"mimir_tenants", "Environment", "Application"},
+			expectedKeys:   []string{tagKeyMimirTenants, tagKeyEnvironment, tagKeyApplication},
 			description:    "should deduplicate exported tags when same key appears in multiple CRs",
 		},
 		{
@@ -757,31 +776,31 @@ func TestExtractExportedTagsOnMetrics(t *testing.T) {
 				{
 					Spec: tagemonv1alpha1.TagemonSpec{
 						ExportedTagsOnMetrics: []tagemonv1alpha1.ExportedTag{
-							{Key: "Team", Required: &trueVal},
-							{Key: "Environment", Required: &trueVal},
+							{Key: tagKeyTeam, Required: &trueVal},
+							{Key: tagKeyEnvironment, Required: &trueVal},
 						},
 					},
 				},
 				{
 					Spec: tagemonv1alpha1.TagemonSpec{
 						ExportedTagsOnMetrics: []tagemonv1alpha1.ExportedTag{
-							{Key: "Team", Required: &falseVal},        // Duplicate
-							{Key: "Environment", Required: &falseVal}, // Duplicate
-							{Key: "Owner", Required: &trueVal},
+							{Key: tagKeyTeam, Required: &falseVal},        // Duplicate
+							{Key: tagKeyEnvironment, Required: &falseVal}, // Duplicate
+							{Key: tagKeyOwner, Required: &trueVal},
 						},
 					},
 				},
 				{
 					Spec: tagemonv1alpha1.TagemonSpec{
 						ExportedTagsOnMetrics: []tagemonv1alpha1.ExportedTag{
-							{Key: "Team", Required: &trueVal}, // Duplicate again
-							{Key: "CostCenter", Required: &trueVal},
+							{Key: tagKeyTeam, Required: &trueVal}, // Duplicate again
+							{Key: tagKeyCostCenter, Required: &trueVal},
 						},
 					},
 				},
 			},
 			expectedLength: 4, // Team, Environment, Owner, CostCenter (all unique)
-			expectedKeys:   []string{"Team", "Environment", "Owner", "CostCenter"},
+			expectedKeys:   []string{tagKeyTeam, tagKeyEnvironment, tagKeyOwner, tagKeyCostCenter},
 			description:    "should deduplicate multiple duplicate keys across multiple CRs",
 		},
 	}
@@ -818,15 +837,15 @@ func TestGetOrCreateMetric(t *testing.T) {
 	}{
 		{
 			name:         "create metric without exported tags",
-			tagKey:       "storage_drop_mb_threshold",
+			tagKey:       tagKeyStorageDropThreshold,
 			exportedTags: []tagemonv1alpha1.ExportedTag{},
 			description:  "should create metric with basic labels only",
 		},
 		{
 			name:   "create metric with single exported tag",
-			tagKey: "storage_drop_mb_threshold",
+			tagKey: tagKeyStorageDropThreshold,
 			exportedTags: []tagemonv1alpha1.ExportedTag{
-				{Key: "Environment"},
+				{Key: tagKeyEnvironment},
 			},
 			description: "should create metric with additional exported tag label",
 		},
@@ -834,14 +853,14 @@ func TestGetOrCreateMetric(t *testing.T) {
 			name:   "create metric with multiple exported tags",
 			tagKey: "retention_days",
 			exportedTags: []tagemonv1alpha1.ExportedTag{
-				{Key: "Environment"},
-				{Key: "Team"},
+				{Key: tagKeyEnvironment},
+				{Key: tagKeyTeam},
 			},
 			description: "should create metric with multiple exported tag labels",
 		},
 		{
 			name:         "retrieve existing metric",
-			tagKey:       "storage_drop_mb_threshold",
+			tagKey:       tagKeyStorageDropThreshold,
 			exportedTags: []tagemonv1alpha1.ExportedTag{},
 			description:  "should return existing metric without creating a new one",
 		},
@@ -876,13 +895,13 @@ func TestCreateMetricsForResourceWithNilGauge(t *testing.T) {
 	}
 
 	resource := &mockResource{
-		id: "arn:aws:s3:us-west-2:123456789012:bucket/test-bucket",
+		id: testARNS3Bucket,
 		tags: map[string]string{
-			"Name":             "test-bucket",
+			tagKeyName:         testBucketName,
 			"threshold_metric": "100",
 		},
 		service:      "s3",
-		resourceType: "bucket",
+		resourceType: awsResourceTypeBucket,
 	}
 
 	exportedTags := []tagemonv1alpha1.ExportedTag{}
@@ -890,7 +909,7 @@ func TestCreateMetricsForResourceWithNilGauge(t *testing.T) {
 	handler.createMetricsForResource(
 		resource,
 		thresholdTags,
-		"test-bucket",
+		testBucketName,
 		"123456789012",
 		"s3/bucket",
 		exportedTags,
@@ -903,8 +922,8 @@ func TestGetOrCreateNonCompliantMetricWithCustomLabels(t *testing.T) {
 	registry := prometheus.NewRegistry()
 
 	nonCompliantMetricCustomLabels := map[string]string{
-		"environment": "production",
-		"cluster":     "us-west-2-prod",
+		labelEnvironment: valProduction,
+		"cluster":        "us-west-2-prod",
 	}
 
 	handler := &Handler{
@@ -914,7 +933,7 @@ func TestGetOrCreateNonCompliantMetricWithCustomLabels(t *testing.T) {
 
 	metricName := "tagemon_resources_non_compliant_count_custom_test"
 	labelNames := make([]string, 0, 2+len(nonCompliantMetricCustomLabels))
-	labelNames = append(labelNames, "resource_type", "account_id")
+	labelNames = append(labelNames, labelResourceType, labelAccountID)
 	for labelName := range nonCompliantMetricCustomLabels {
 		labelNames = append(labelNames, labelName)
 	}
@@ -931,7 +950,7 @@ func TestGetOrCreateNonCompliantMetricWithCustomLabels(t *testing.T) {
 
 	assert.NotNil(t, handler.nonCompliantGauges[metricName])
 
-	labelValues := []string{"s3/bucket", "123456789012", "production", "us-west-2-prod"}
+	labelValues := []string{"s3/bucket", "123456789012", valProduction, "us-west-2-prod"}
 	gauge.WithLabelValues(labelValues...).Set(5.0)
 }
 
@@ -939,8 +958,8 @@ func TestUpdateNonCompliantMetricsWithCustomLabels(t *testing.T) {
 	registry := prometheus.NewRegistry()
 
 	nonCompliantMetricCustomLabels := map[string]string{
-		"environment": "staging",
-		"region":      "us-east-1",
+		labelEnvironment: "staging",
+		"region":         "us-east-1",
 	}
 
 	handler := &Handler{
@@ -950,7 +969,7 @@ func TestUpdateNonCompliantMetricsWithCustomLabels(t *testing.T) {
 
 	metricName := testNonCompliantMetricName
 	labelNames := make([]string, 0, 2+len(nonCompliantMetricCustomLabels))
-	labelNames = append(labelNames, "resource_type", "account_id")
+	labelNames = append(labelNames, labelResourceType, labelAccountID)
 	for labelName := range nonCompliantMetricCustomLabels {
 		labelNames = append(labelNames, labelName)
 	}
@@ -983,8 +1002,8 @@ func TestUpdateNonCompliantMetricsWithCustomLabels(t *testing.T) {
 
 func TestNewHandlerWithCustomLabels(t *testing.T) {
 	nonCompliantMetricCustomLabels := map[string]string{
-		"environment": "production",
-		"team":        "platform",
+		labelEnvironment: valProduction,
+		"team":           valPlatform,
 	}
 
 	handler := New(nil, nonCompliantMetricCustomLabels)
@@ -1015,19 +1034,19 @@ func TestIsResourceRelevant(t *testing.T) {
 		{
 			name: "resource matches account and search tags",
 			resource: &mockResource{
-				id: "arn:aws:s3:us-west-2:123456789012:bucket/test-bucket",
+				id: testARNS3Bucket,
 				tags: map[string]string{
-					"Environment": "production",
-					"Team":        "platform",
-					"Name":        "test-bucket",
+					tagKeyEnvironment: valProduction,
+					tagKeyTeam:        valPlatform,
+					tagKeyName:        testBucketName,
 				},
 			},
 			allowedAccountIDs: map[string]bool{
 				"123456789012": true,
 			},
 			searchTags: []tagemonv1alpha1.TagemonTag{
-				{Key: "Environment", Value: "production"},
-				{Key: "Team", Value: "platform"},
+				{Key: tagKeyEnvironment, Value: valProduction},
+				{Key: tagKeyTeam, Value: valPlatform},
 			},
 			expected:    true,
 			description: "resource should be relevant when it matches both account and all search tags",
@@ -1035,18 +1054,18 @@ func TestIsResourceRelevant(t *testing.T) {
 		{
 			name: "resource matches account but missing search tag",
 			resource: &mockResource{
-				id: "arn:aws:s3:us-west-2:123456789012:bucket/test-bucket",
+				id: testARNS3Bucket,
 				tags: map[string]string{
-					"Environment": "production",
-					"Name":        "test-bucket",
+					tagKeyEnvironment: valProduction,
+					tagKeyName:        testBucketName,
 				},
 			},
 			allowedAccountIDs: map[string]bool{
 				"123456789012": true,
 			},
 			searchTags: []tagemonv1alpha1.TagemonTag{
-				{Key: "Environment", Value: "production"},
-				{Key: "Team", Value: "platform"}, // Missing this tag
+				{Key: tagKeyEnvironment, Value: valProduction},
+				{Key: tagKeyTeam, Value: valPlatform}, // Missing this tag
 			},
 			expected:    false,
 			description: "resource should be irrelevant when missing required search tags",
@@ -1056,16 +1075,16 @@ func TestIsResourceRelevant(t *testing.T) {
 			resource: &mockResource{
 				id: "arn:aws:s3:::test-bucket:999888777666",
 				tags: map[string]string{
-					"Environment": "production",
-					"Team":        "platform",
+					tagKeyEnvironment: valProduction,
+					tagKeyTeam:        valPlatform,
 				},
 			},
 			allowedAccountIDs: map[string]bool{
 				"123456789012": true,
 			},
 			searchTags: []tagemonv1alpha1.TagemonTag{
-				{Key: "Environment", Value: "production"},
-				{Key: "Team", Value: "platform"},
+				{Key: tagKeyEnvironment, Value: valProduction},
+				{Key: tagKeyTeam, Value: valPlatform},
 			},
 			expected:    false,
 			description: "resource should be irrelevant when account is not allowed",
@@ -1073,9 +1092,9 @@ func TestIsResourceRelevant(t *testing.T) {
 		{
 			name: "resource matches account, no search tags required",
 			resource: &mockResource{
-				id: "arn:aws:s3:us-west-2:123456789012:bucket/test-bucket",
+				id: testARNS3Bucket,
 				tags: map[string]string{
-					"Name": "test-bucket",
+					tagKeyName: testBucketName,
 				},
 			},
 			allowedAccountIDs: map[string]bool{
@@ -1088,16 +1107,16 @@ func TestIsResourceRelevant(t *testing.T) {
 		{
 			name: "no account filtering, resource has search tags",
 			resource: &mockResource{
-				id: "arn:aws:s3:us-west-2:123456789012:bucket/test-bucket",
+				id: testARNS3Bucket,
 				tags: map[string]string{
-					"Environment": "production",
-					"Team":        "platform",
+					tagKeyEnvironment: valProduction,
+					tagKeyTeam:        valPlatform,
 				},
 			},
 			allowedAccountIDs: map[string]bool{},
 			searchTags: []tagemonv1alpha1.TagemonTag{
-				{Key: "Environment", Value: "production"},
-				{Key: "Team", Value: "platform"},
+				{Key: tagKeyEnvironment, Value: valProduction},
+				{Key: tagKeyTeam, Value: valPlatform},
 			},
 			expected:    true,
 			description: "resource should be relevant when no account filtering and search tags match",
@@ -1105,9 +1124,9 @@ func TestIsResourceRelevant(t *testing.T) {
 		{
 			name: "no filtering at all",
 			resource: &mockResource{
-				id: "arn:aws:s3:us-west-2:123456789012:bucket/test-bucket",
+				id: testARNS3Bucket,
 				tags: map[string]string{
-					"Name": "test-bucket",
+					tagKeyName: testBucketName,
 				},
 			},
 			allowedAccountIDs: map[string]bool{},
@@ -1118,18 +1137,18 @@ func TestIsResourceRelevant(t *testing.T) {
 		{
 			name: "search tag value mismatch",
 			resource: &mockResource{
-				id: "arn:aws:s3:us-west-2:123456789012:bucket/test-bucket",
+				id: testARNS3Bucket,
 				tags: map[string]string{
-					"Environment": "staging", // Wrong value
-					"Team":        "platform",
+					tagKeyEnvironment: "staging", // Wrong value
+					tagKeyTeam:        valPlatform,
 				},
 			},
 			allowedAccountIDs: map[string]bool{
 				"123456789012": true,
 			},
 			searchTags: []tagemonv1alpha1.TagemonTag{
-				{Key: "Environment", Value: "production"}, // Expected production
-				{Key: "Team", Value: "platform"},
+				{Key: tagKeyEnvironment, Value: valProduction}, // Expected production
+				{Key: tagKeyTeam, Value: valPlatform},
 			},
 			expected:    false,
 			description: "resource should be irrelevant when search tag value doesn't match",
