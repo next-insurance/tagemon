@@ -312,7 +312,7 @@ func (h *Handler) isResourceRelevant(resource interface{}, allowedAccountIDs map
 		resourceTags := r.Tags()
 
 		for _, searchTag := range searchTags {
-			if tagValue, exists := resourceTags[searchTag.Key]; !exists || tagValue != searchTag.Value {
+			if tagValue, exists := resourceTags[searchTag.Key]; !exists || (searchTag.Value != "" && tagValue != searchTag.Value) {
 				return false
 			}
 		}
