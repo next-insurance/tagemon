@@ -138,9 +138,9 @@ type TagemonTag struct {
 	// +kubebuilder:validation:Required
 	Key string `json:"key"`
 
-	// Value is the tag value
-	// +kubebuilder:validation:Required
-	Value string `json:"value"`
+	// Value is the tag value. If omitted, any value is accepted (existence check only).
+	// +kubebuilder:validation:Optional
+	Value string `json:"value,omitempty"`
 }
 
 // ExportedTag defines a tag to be exported on metrics

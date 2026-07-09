@@ -578,9 +578,13 @@ func (r *Reconciler) generateYACEConfig(tagemon *v1alpha1.Tagemon) (string, erro
 					"searchTags": func() []map[string]string {
 						tags := make([]map[string]string, len(tagemon.Spec.SearchTags))
 						for i, tag := range tagemon.Spec.SearchTags {
+							value := tag.Value
+							if value == "" {
+								value = ".*"
+							}
 							tags[i] = map[string]string{
 								"key":   tag.Key,
-								"value": tag.Value,
+								"value": value,
 							}
 						}
 						return tags
