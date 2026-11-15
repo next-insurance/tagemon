@@ -8,18 +8,6 @@ updates:
     labels:
       - "dependencies"
       - "go"
-    groups:
-      kubernetes:
-        patterns:
-          - "k8s.io/*"
-          - "sigs.k8s.io/*"
-      opentelemetry:
-        patterns:
-          - "go.opentelemetry.io/*"
-      go-minor-patch:
-        update-types:
-          - "minor"
-          - "patch"
 
   - package-ecosystem: "docker"
     directory: "/"
@@ -38,8 +26,4 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
-    groups:
-      github-actions:
-        patterns:
-          - "*"
 
