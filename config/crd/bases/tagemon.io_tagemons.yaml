@@ -255,11 +255,11 @@ spec:
                       description: Key is the tag key
                       type: string
                     value:
-                      description: Value is the tag value
+                      description: Value is the tag value. If omitted, any value is
+                        accepted (existence check only).
                       type: string
                   required:
                   - key
-                  - value
                   type: object
                 type: array
               statistics:

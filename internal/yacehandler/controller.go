@@ -34,6 +34,10 @@ const (
 	yaceConfigKey = "config.yml"
 	yaceName      = "yace"
 	regionUSEast1 = "us-east-1"
+
+	// conflictRequeueDelay is how long to wait before retrying after an
+	// optimistic-concurrency conflict on update.
+	conflictRequeueDelay = time.Second
 )
 
 type Reconciler struct {
@@ -108,7 +112,7 @@ func (r *Reconciler) handleCreate(ctx context.Context, tagemon *v1alpha1.Tagemon
 	controllerutil.AddFinalizer(tagemon, finalizerName)
 	if err := r.Update(ctx, tagemon); err != nil {
 		if errors.IsConflict(err) {
-			return ctrl.Result{Requeue: true}, nil
+			return ctrl.Result{RequeueAfter: conflictRequeueDelay}, nil
 		}
 		return ctrl.Result{}, err
 	}
@@ -182,7 +186,7 @@ func (r *Reconciler) handleDelete(ctx context.Context, tagemon *v1alpha1.Tagemon
 	controllerutil.RemoveFinalizer(tagemon, finalizerName)
 	if err := r.Update(ctx, tagemon); err != nil {
 		if errors.IsConflict(err) {
-			return ctrl.Result{Requeue: true}, nil
+			return ctrl.Result{RequeueAfter: conflictRequeueDelay}, nil
 		}
 		return ctrl.Result{}, err
 	}
@@ -508,7 +512,7 @@ func (r *Reconciler) updateStatus(ctx context.Context, tagemon *v1alpha1.Tagemon
 	tagemon.Status.ObservedGeneration = tagemon.GetGeneration()
 	if err := r.Status().Update(ctx, tagemon); err != nil {
 		if errors.IsConflict(err) {
-			return ctrl.Result{Requeue: true}, nil
+			return ctrl.Result{RequeueAfter: conflictRequeueDelay}, nil
 		}
 		return ctrl.Result{}, err
 	}
